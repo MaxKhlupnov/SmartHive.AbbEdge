@@ -1,0 +1,210 @@
+{
+  "moduleContent": {
+    "$edgeAgent": {
+      "properties.desired": {
+        "schemaVersion": "1.0",
+        "runtime": {
+          "type": "docker",
+          "settings": {
+            "minDockerVersion": "v1.25",
+            "loggingOptions": "",
+            "registryCredentials": {
+              "docker": {
+                "username": "$CONTAINER_REGISTRY_USERNAME_docker",
+                "password": "$CONTAINER_REGISTRY_PASSWORD_docker",
+                "address": "docker.io"
+              },
+              "smarthive": {
+                "username": "$CONTAINER_REGISTRY_USERNAME_smarthive",
+                "password": "$CONTAINER_REGISTRY_PASSWORD_smarthive",
+                "address": "smarthive.azurecr.io"
+              }
+            }
+          }
+        },
+        "systemModules": {
+          "edgeAgent": {
+            "type": "docker",
+            "settings": {
+              "image": "mcr.microsoft.com/azureiotedge-agent:1.0",
+              "createOptions": ""
+            }
+          },
+          "edgeHub": {
+            "type": "docker",
+            "status": "running",
+            "restartPolicy": "always",
+            "settings": {
+              "image": "mcr.microsoft.com/azureiotedge-hub:1.0",
+              "createOptions": "{\"HostConfig\":{\"PortBindings\":{\"8883/tcp\":[{\"HostPort\":\"8883\"}],\"443/tcp\":[{\"HostPort\":\"443\"}]}}}"
+            }
+          }
+        },
+        "modules": {
+          "tempSensor": {
+            "version": "1.0",
+            "type": "docker",
+            "status": "running",
+            "restartPolicy": "always",
+            "settings": {
+              "image": "mcr.microsoft.com/azureiotedge-simulated-temperature-sensor:1.0",
+              "createOptions": ""
+            }
+          },
+          "modbus": {
+            "version": "1.0",
+            "type": "docker",
+            "status": "running",
+            "restartPolicy": "always",
+            "settings": {
+              "image": "microsoft/azureiotedge-modbus-tcp:1.0-preview",
+              "createOptions": ""
+            }
+          },
+          "abb_acs_edge_profile": {
+            "version": "1.0",
+            "type": "docker",
+            "status": "running",
+            "restartPolicy": "always",
+            "settings": {
+              "image": "${MODULES.abb_acs_edge_profile.amd64}",
+              "createOptions": ""
+            }
+          }
+        }
+      }
+    },
+    "$edgeHub": {
+      "properties.desired": {
+        "schemaVersion": "1.0",
+        "routes": {
+          "modbusToAbbAcsEdgeProfile":"FROM /messages/modules/modbus/outputs/modbusOutput INTO BrokeredEndpoint(\"/modules/abb_acs_edge_profile/inputs/input1\")",                    
+          "abb_acs_edge_profileToIoTHub": "FROM /messages/modules/abb_acs_edge_profile/outputs/* INTO $upstream"
+        },
+        "storeAndForwardConfiguration": {
+          "timeToLiveSecs": 7200
+        }
+      }
+    },
+    "$modbus":{
+      "properties.desired": {
+        "PublishInterval": "2000",
+        "SlaveConfigs": {
+            "acs580-01":{
+              "SlaveConnection": "10.101.51.250",
+              "HwId": "ABB-ACS580-01-02A6-4",
+              "Operations": {
+                "Speed": {
+                  "PollingInterval": "1000",
+                  "UnitId": "1",
+                  "StartAddress": "400101",
+                  "Count": "1",
+                  "DisplayName": "Speed"
+                },
+                "Frequency": {
+                  "PollingInterval": "1000",
+                  "UnitId": "1",
+                  "StartAddress": "400106",
+                  "Count": "1",
+                  "DisplayName": "Frequency"
+                },
+                "Current": {
+                  "PollingInterval": "1000",
+                  "UnitId": "1",
+                  "StartAddress": "400107",
+                  "Count": "1",
+                  "DisplayName": "Current"
+                },
+                "Torque": {
+                  "PollingInterval": "1000",
+                  "UnitId": "1",
+                  "StartAddress": "400110",
+                  "Count": "1",
+                  "DisplayName": "Torque"
+                },
+                "DCvoltage": {
+                  "PollingInterval": "1000",
+                  "UnitId": "1",
+                  "StartAddress": "400111",
+                  "Count": "1",
+                  "DisplayName": "DCvoltage"
+                },
+                "OutputPower": {
+                  "PollingInterval": "1000",
+                  "UnitId": "1",
+                  "StartAddress": "400113",
+                  "Count": "1",
+                  "DisplayName": "OutputPower"
+                },
+                "InverterKWh": {
+                  "PollingInterval": "1000",
+                  "UnitId": "1",
+                  "StartAddress": "400120",
+                  "Count": "1",
+                  "DisplayName": "InverterKWh"
+                },
+                "StatusWord": {
+                  "PollingInterval": "1000",
+                  "UnitId": "1",
+                  "StartAddress": "400051",
+                  "Count": "1",
+                  "DisplayName": "StatusWord"
+                },
+                "SpeedScale": {
+                  "PollingInterval": "1000",
+                  "UnitId": "1",
+                  "StartAddress": "404601",
+                  "Count": "1",
+                  "DisplayName": "SpeedScale"
+                },
+                "FrequencyScale": {
+                  "PollingInterval": "1000",
+                  "UnitId": "1",
+                  "StartAddress": "404602",
+                  "Count": "1",
+                  "DisplayName": "FrequencyScale"
+                },
+                "TorqueScale": {
+                  "PollingInterval": "1000",
+                  "UnitId": "1",
+                  "StartAddress": "404603",
+                  "Count": "1",
+                  "DisplayName": "TorqueScale"
+                },                
+                "PowerScale": {
+                  "PollingInterval": "1000",
+                  "UnitId": "1",
+                  "StartAddress": "404604",
+                  "Count": "1",
+                  "DisplayName": "PowerScale"
+                },
+                "CurrentScale": {
+                  "PollingInterval": "1000",
+                  "UnitId": "1",
+                  "StartAddress": "404605",
+                  "Count": "1",
+                  "DisplayName": "CurrentScale"
+                }
+              }
+            }
+          }
+        },
+        "$abb_acs_edge_profile":{
+          "properties.desired": {
+            "DriveProfileConfigs": {
+              "SpeedActual":{
+                  "Value": "$Speed * 20000 / $SpeedScale",
+                  "ValueType": "Double",
+                  "ValueUnit": "rpm"
+              },
+              "Torque":{
+                "ValueFormula": "$Torque * 10000 / $TorqueScale",
+                "ValueType": "Double",
+                "ValueUnit": "%"
+            }
+            }
+          }
+        }        
+    }
+  }
+}
