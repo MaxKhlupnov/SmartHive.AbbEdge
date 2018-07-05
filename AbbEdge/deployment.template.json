@@ -68,7 +68,6 @@
       "properties.desired": {
         "schemaVersion": "1.0",
         "routes": {
-          "modbusToFilter": "FROM /messages/modules/modbus/outputs/modbusOutput/* INTO $upstream",
           "modbusToAbbAcsEdgeProfile": "FROM /messages/modules/modbus/outputs/modbusOutput INTO BrokeredEndpoint(\"/modules/abbDriveProfile/inputs/input1\")",
           "abbDriveProfileToIoTHub": "FROM /messages/modules/abbDriveProfile/outputs/* INTO $upstream"
         },
@@ -90,7 +89,16 @@
                 "UnitId": "1",
                 "StartAddress": "400101",
                 "Count": "1",
-                "DisplayName": "Speed"
+                "DisplayName": "Speed",
+                "CorrelationId": "Speed"
+              },
+              "SpeedScale": {
+                "PollingInterval": "1000",
+                "UnitId": "1",
+                "StartAddress": "404601",
+                "Count": "1",
+                "DisplayName": "SpeedScale",
+                "CorrelationId": "Speed"
               },
               "Frequency": {
                 "PollingInterval": "1000",
@@ -111,7 +119,16 @@
                 "UnitId": "1",
                 "StartAddress": "400110",
                 "Count": "1",
-                "DisplayName": "Torque"
+                "DisplayName": "Torque",
+                "CorrelationId": "Torque"
+              },
+              "TorqueScale": {
+                "PollingInterval": "1000",
+                "UnitId": "1",
+                "StartAddress": "404603",
+                "Count": "1",
+                "DisplayName": "TorqueScale",
+                "CorrelationId": "Torque"
               },
               "DCvoltage": {
                 "PollingInterval": "1000",
@@ -140,27 +157,13 @@
                 "StartAddress": "400051",
                 "Count": "1",
                 "DisplayName": "StatusWord"
-              },
-              "SpeedScale": {
-                "PollingInterval": "1000",
-                "UnitId": "1",
-                "StartAddress": "404601",
-                "Count": "1",
-                "DisplayName": "SpeedScale"
-              },
+              },           
               "FrequencyScale": {
                 "PollingInterval": "1000",
                 "UnitId": "1",
                 "StartAddress": "404602",
                 "Count": "1",
                 "DisplayName": "FrequencyScale"
-              },
-              "TorqueScale": {
-                "PollingInterval": "1000",
-                "UnitId": "1",
-                "StartAddress": "404603",
-                "Count": "1",
-                "DisplayName": "TorqueScale"
               },
               "PowerScale": {
                 "PollingInterval": "1000",
@@ -183,14 +186,14 @@
     },
     "abbDriveProfile": {
       "properties.desired": {
-        "DriveProfileConfigs": {
-          "SpeedActual": {
-            "Value": "$Speed * 20000 / $SpeedScale",
+        "SignalConfigs": {
+          "Speed": {
+            "ValueFormula": "Speed * 20000 / SpeedScale",
             "ValueType": "Double",
             "ValueUnit": "rpm"
           },
           "Torque": {
-            "ValueFormula": "$Torque * 10000 / $TorqueScale",
+            "ValueFormula": "Torque * 10000 / TorqueScale",
             "ValueType": "Double",
             "ValueUnit": "%"
           }
