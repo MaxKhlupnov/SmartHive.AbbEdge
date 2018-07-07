@@ -66,6 +66,8 @@ namespace abbDriveProfile
                 Console.WriteLine($"Error setting desired  properties: {e.Message}"); 
             }
            
+            // Attach callback for Twin desired properties updates
+            await ioTHubModuleClient.SetDesiredPropertyUpdateCallbackAsync(OnDesiredPropertiesUpdate, ioTHubModuleClient);
         }
 
         /// <summary>
@@ -102,11 +104,7 @@ namespace abbDriveProfile
 
                     Message  pipeMessage =  new Message(messageBytes);
                     pipeMessage .Properties.Add("content-type", "application/edge-modbus-json");
-
-                    foreach (var prop in message.Properties)
-                    {
-                        pipeMessage.Properties.Add(prop.Key, prop.Value);
-                    }
+                 
                     await moduleClient.SendEventAsync("output1", pipeMessage);
                     Console.WriteLine("Telemetry message sent");
                 }

@@ -188,12 +188,12 @@
       "properties.desired": {
         "SignalConfigs": {
           "Speed": {
-            "ValueFormula": "Speed * 20000 / SpeedScale",
+            "ValueFormula": "Speed * SpeedScale / 20000",
             "ValueType": "Double",
             "ValueUnit": "rpm"
           },
           "Torque": {
-            "ValueFormula": "Torque * 10000 / TorqueScale",
+            "ValueFormula": "Torque * TorqueScale / 10000",
             "ValueType": "Double",
             "ValueUnit": "%"
           }

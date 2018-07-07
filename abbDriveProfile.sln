@@ -1,0 +1,31 @@
+﻿
+Microsoft Visual Studio Solution File, Format Version 12.00
+# Visual Studio 15
+VisualStudioVersion = 15.0.27428.1
+MinimumVisualStudioVersion = 10.0.40219.1
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "abbDriveProfile", "AbbEdge\modules\abbDriveProfile\abbDriveProfile.csproj", "{0DED8B30-C580-4F64-8FE7-37289D5E9851}"
+EndProject
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "iot-edge-modbus", "iot-edge-modbus\src\iot-edge-modbus.csproj", "{318CCFFD-252D-4FB6-97EC-33C95237806E}"
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|Any CPU = Debug|Any CPU
+		Release|Any CPU = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{0DED8B30-C580-4F64-8FE7-37289D5E9851}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{0DED8B30-C580-4F64-8FE7-37289D5E9851}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{0DED8B30-C580-4F64-8FE7-37289D5E9851}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{0DED8B30-C580-4F64-8FE7-37289D5E9851}.Release|Any CPU.Build.0 = Release|Any CPU
+		{318CCFFD-252D-4FB6-97EC-33C95237806E}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{318CCFFD-252D-4FB6-97EC-33C95237806E}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{318CCFFD-252D-4FB6-97EC-33C95237806E}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{318CCFFD-252D-4FB6-97EC-33C95237806E}.Release|Any CPU.Build.0 = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(SolutionProperties) = preSolution
+		HideSolutionNode = FALSE
+	EndGlobalSection
+	GlobalSection(ExtensibilityGlobals) = postSolution
+		SolutionGuid = {F904737F-8098-42FC-931E-F6BB8935830C}
+	EndGlobalSection
+EndGlobal
