@@ -60,6 +60,16 @@
               "image": "${MODULES.abbDriveProfile.amd64.debug}",
               "createOptions": ""
             }
+          },
+          "abbRemoteMonitoringGateway": {
+            "version": "1.0",
+            "type": "docker",
+            "status": "running",
+            "restartPolicy": "always",
+            "settings": {
+              "image": "${MODULES.abbRemoteMonitoringGateway.amd64.debug}",
+              "createOptions": ""
+            }
           }
         }
       }
@@ -68,8 +78,9 @@
       "properties.desired": {
         "schemaVersion": "1.0",
         "routes": {
-          "modbusToAbbAcsEdgeProfile": "FROM /messages/modules/modbus/outputs/modbusOutput INTO BrokeredEndpoint(\"/modules/abbDriveProfile/inputs/input1\")",
-          "abbDriveProfileToIoTHub": "FROM /messages/modules/abbDriveProfile/outputs/* INTO $upstream"
+          "modbusToAbbAcsEdgeProfile": "FROM /messages/modules/modbus/outputs/modbusOutput INTO BrokeredEndpoint(\"/modules/abbDriveProfile/inputs/driveProfileInput\")",
+          "abbDriveProfileToRemoteMonitoringGateway": "FROM /messages/modules/abbDriveProfile/outputs/driveProfileOutput INTO BrokeredEndpoint(\"/modules/abbRemoteMonitoringGateway/inputs/gatewayInput\")",          
+          "abbRemoteMonitoringGatewayToIoTHub": "FROM /messages/modules/abbRemoteMonitoringGateway/outputs/* INTO $upstream"
         },
         "storeAndForwardConfiguration": {
           "timeToLiveSecs": 7200
@@ -157,7 +168,7 @@
                 "StartAddress": "400051",
                 "Count": "1",
                 "DisplayName": "StatusWord"
-              },           
+              },
               "FrequencyScale": {
                 "PollingInterval": "1000",
                 "UnitId": "1",
@@ -198,6 +209,44 @@
             "ValueUnit": "%"
           }
         }
+      }
+    },
+    "abbRemoteMonitoringGateway":{
+      "properties.desired": {
+        "GatewayConfig": 
+        {
+          "DeviceProperties": {
+            "HubEnabledState": true
+          },
+          "Commands": [
+            {
+              "Name": "StartTelemetry",
+              "DeliveryType": 0,
+              "Parameters": [],
+              "Description": "Instructs the gateway module to start sending telemetry."
+            },
+            {
+              "Name": "StopTelemetry",
+              "DeliveryType": 0,
+              "Parameters": [],
+              "Description": "Instructs the gateway module stop sending telemetry."
+            }
+          ],
+          "Telemetry": [
+            {
+              "Name": "Speed",
+              "DisplayName": "Drive speed",
+              "Type": "double"
+            },
+            {
+              "Name": "Torque",
+              "DisplayName": "Drive torque",
+              "Type": "double"
+            }
+          ],
+          "Version": "1.0",
+          "ObjectType": "DeviceInfo"
+        }              
       }
     }
   }

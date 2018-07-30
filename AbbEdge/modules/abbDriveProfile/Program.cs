@@ -105,7 +105,7 @@ namespace abbDriveProfile
                     Message  pipeMessage =  new Message(messageBytes);
                     pipeMessage .Properties.Add("content-type", "application/edge-modbus-json");
                  
-                    await moduleClient.SendEventAsync("output1", pipeMessage);
+                    await moduleClient.SendEventAsync("driveProfileOutput", pipeMessage);
                     Console.WriteLine("Telemetry message sent");
                 }
                 
@@ -117,7 +117,7 @@ namespace abbDriveProfile
         }
 
 
-               /// <summary>
+        /// <summary>
         /// Callback to handle Twin desired properties updates�
         /// </summary>
         static async Task OnDesiredPropertiesUpdate(TwinCollection desiredProperties, object userContext)
@@ -128,7 +128,7 @@ namespace abbDriveProfile
             {
                 // stop all activities while updating configuration
                 await ioTHubModuleClient.SetInputMessageHandlerAsync(
-                "input1",
+                "driveProfileInput",
                 DummyCallBack,
                 null);
 
@@ -193,14 +193,14 @@ namespace abbDriveProfile
                     var userContext = new Tuple<ModuleClient, ModuleMessageHandler>(ioTHubModuleClient, moduleHandle);
                     // Register callback to be called when a message is received by the module
                     await ioTHubModuleClient.SetInputMessageHandlerAsync(
-                    "input1",
+                    "driveProfileInput",
                     PipeMessage,
                     userContext);
                     Console.WriteLine("DriverProfile module was loaded sucessfully and listining for modbus messages.");
                 }
                 else
                 {
-                    Console.WriteLine("Error creating modbus message handler.");
+                    Console.WriteLine("Error creating modbus message handler. Message processing stopped.");
                 }
 
             }
