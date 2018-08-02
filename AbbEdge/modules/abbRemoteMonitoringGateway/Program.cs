@@ -8,20 +8,23 @@ namespace abbRemoteMonitoringGateway
     using System.Text;
     using System.Threading;
     using System.Threading.Tasks;
+    using System.Collections.Generic;
     using Microsoft.Azure.Devices.Client;
     using Microsoft.Azure.Devices.Client.Transport.Mqtt;
     using Microsoft.Azure.Devices.Shared;
     using Newtonsoft.Json;
+   
+
     class Program
     {
         static int counter;
-
+        private static CancellationTokenSource cts;
         static void Main(string[] args)
         {
             Init().Wait();
 
             // Wait until the app unloads or is cancelled
-            var cts = new CancellationTokenSource();
+            cts = new CancellationTokenSource();
             AssemblyLoadContext.Default.Unloading += (ctx) => cts.Cancel();
             Console.CancelKeyPress += (sender, cpe) => cts.Cancel();
             WhenCancelled(cts.Token).Wait();
@@ -52,8 +55,17 @@ namespace abbRemoteMonitoringGateway
             await ioTHubModuleClient.OpenAsync();
             Console.WriteLine("IoT Hub module client initialized.");
 
-            // Register callback to be called when a message is received by the module
-            await ioTHubModuleClient.SetInputMessageHandlerAsync("gatewayInput", PipeMessage, ioTHubModuleClient);
+             // Read TemperatureThreshold from Module Twin Desired Properties
+            var moduleTwin = await ioTHubModuleClient.GetTwinAsync();
+            var moduleTwinCollection = moduleTwin.Properties.Desired;
+            try {
+                await DoTwinUpdate(moduleTwin.Properties.Desired, ioTHubModuleClient);
+            } catch(ArgumentOutOfRangeException e) {
+                Console.WriteLine($"Error setting desired  properties: {e.Message}"); 
+            }
+           
+            // Attach callback for Twin desired properties updates
+            await ioTHubModuleClient.SetDesiredPropertyUpdateCallbackAsync(OnDesiredPropertiesUpdate, ioTHubModuleClient);
         }
 
         /// <summary>
@@ -63,13 +75,16 @@ namespace abbRemoteMonitoringGateway
         /// </summary>
         static async Task<MessageResponse> PipeMessage(Message message, object userContext)
         {
-            int counterValue = Interlocked.Increment(ref counter);
-
-            var moduleClient = userContext as ModuleClient;
-            if (moduleClient == null)
+             var userContextValues  = userContext as Tuple<ModuleClient, GatewayController>;
+            if (userContextValues == null)
             {
-                throw new InvalidOperationException("UserContext doesn't contain " + "expected values");
+                throw new InvalidOperationException("UserContext doesn't contain expected values");
             }
+                ModuleClient ioTHubModuleClient = userContextValues.Item1;
+                GatewayController gatewayHandle = userContextValues.Item2;
+
+            int counterValue = Interlocked.Increment(ref counter);
+            
 
             byte[] messageBytes = message.GetBytes();
             string messageString = Encoding.UTF8.GetString(messageBytes);
@@ -77,13 +92,16 @@ namespace abbRemoteMonitoringGateway
 
             if (!string.IsNullOrEmpty(messageString))
             {
-                var pipeMessage = new Message(messageBytes);
-                foreach (var prop in message.Properties)
-                {
-                    pipeMessage.Properties.Add(prop.Key, prop.Value);
-                }
-                await moduleClient.SendEventAsync("gatewayOutput", pipeMessage);
-                Console.WriteLine("Received message sent");
+              //  await Task.Run(() => {
+                 List<SignalTelemetry> telemetryData = JsonConvert.DeserializeObject<List<SignalTelemetry>>(messageString);                
+                 if (telemetryData.Count > 0){
+                    await gatewayHandle.ProcessAbbDriveProfileTelemetry(telemetryData);
+                 } 
+               /// }); 
+                
+            }else{                
+                throw new InvalidOperationException("Error: message body is empty"); 
+                
             }
             return MessageResponse.Completed;
         }
@@ -154,13 +172,13 @@ namespace abbRemoteMonitoringGateway
             else
             {
                 Console.WriteLine("Attempt to parse configuration");
-                DeviceModel config = JsonConvert.DeserializeObject<DeviceModel>(serializedStr);                
+                GatewayModel config = JsonConvert.DeserializeObject<GatewayModel>(serializedStr);                
                                                
                 if (config != null)
                 {
                     GatewayController controller = new GatewayController(config);
                     var userContext = new Tuple<ModuleClient, GatewayController>(ioTHubModuleClient, controller);
-                    await GatewayController.Start(userContext);
+                    await GatewayController.Start(userContext, cts.Token);
                     
                     
                     // Register callback to be called when a message is received by the module

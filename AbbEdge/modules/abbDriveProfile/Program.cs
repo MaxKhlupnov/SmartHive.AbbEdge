@@ -20,13 +20,14 @@ namespace abbDriveProfile
         
         static int counter;
 
+        private static CancellationTokenSource cts;
         static void Main(string[] args)
         {
 
             Init().Wait();
 
             // Wait until the app unloads or is cancelled
-            var cts = new CancellationTokenSource();
+            cts = new CancellationTokenSource();
             AssemblyLoadContext.Default.Unloading += (ctx) => cts.Cancel();
             Console.CancelKeyPress += (sender, cpe) => cts.Cancel();
             WhenCancelled(cts.Token).Wait();
@@ -108,9 +109,10 @@ namespace abbDriveProfile
                     await moduleClient.SendEventAsync("driveProfileOutput", pipeMessage);
                     Console.WriteLine("Telemetry message sent");
                 }
-                
-                
-                
+            }
+            else
+            {
+                throw new InvalidOperationException("Error: Message Body is empty");
             }
             
             return MessageResponse.Completed;

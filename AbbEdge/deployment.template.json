@@ -215,37 +215,32 @@
       "properties.desired": {
         "GatewayConfig": 
         {
-          "DeviceProperties": {
-            "HubEnabledState": true
-          },
-          "Commands": [
-            {
-              "Name": "StartTelemetry",
+          "PoolingInterval": 2000,
+          "HubEnabledState": true,
+          "Commands":{ 
+          "StartTelemetry":
+            {              
               "DeliveryType": 0,
-              "Parameters": [],
+              "Parameters": {},
               "Description": "Instructs the gateway module to start sending telemetry."
             },
-            {
-              "Name": "StopTelemetry",
+            "StopTelemetry": {              
               "DeliveryType": 0,
-              "Parameters": [],
+              "Parameters": {},
               "Description": "Instructs the gateway module stop sending telemetry."
             }
-          ],
-          "Telemetry": [
-            {
-              "Name": "Speed",
+          }
+          ,
+          "Telemetry": {
+            "Speed": {              
               "DisplayName": "Drive speed",
               "Type": "double"
             },
-            {
-              "Name": "Torque",
+            "Torque": {              
               "DisplayName": "Drive torque",
               "Type": "double"
             }
-          ],
-          "Version": "1.0",
-          "ObjectType": "DeviceInfo"
+          }
         }              
       }
     }
