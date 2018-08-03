@@ -95,7 +95,7 @@ namespace abbRemoteMonitoringGateway
 
 
     [DataContract]
-    public class TelemetryFormat
+    public class TelemetryFormat : IEquatable<TelemetryFormat>
     {
         [DataMember]
         public string Name { get; set; }
@@ -105,6 +105,21 @@ namespace abbRemoteMonitoringGateway
 
         [DataMember]
         public string Type { get; set; }
+
+        public bool Equals(TelemetryFormat telemetry)
+        {
+            return null != telemetry && Name.Equals(telemetry.Name, StringComparison.InvariantCultureIgnoreCase);
+        }
+
+        public override bool Equals(object obj)
+        {
+            return Equals(obj as TelemetryFormat);
+        }
+
+        public override int GetHashCode()
+        {            
+                return this.Name.GetHashCode();            
+        }
     }
 
     [DataContract]

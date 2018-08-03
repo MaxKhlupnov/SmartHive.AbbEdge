@@ -15,8 +15,7 @@
 
 namespace abbRemoteMonitoringGateway
 {
-    class GatewayController {
-         internal const string GatewayConfigSection = "GatewayConfig";
+    class GatewayController {        
 
         /**
             Module configuration settings comming from Module Twin
@@ -37,28 +36,28 @@ namespace abbRemoteMonitoringGateway
         /// <summary>
         /// Creates a new instance of a DeviceModel.
         /// </summary>
-        public GatewayController(GatewayModel  gatewayDeviceConfig)
+        private GatewayController(GatewayModel  gatewayDeviceConfig)
         {
             this.GatewayConfig = gatewayDeviceConfig;
             this.GatewayDeviceConfig = new DeviceModel();
-            this.GatewayDeviceConfig.DeviceProperties.HubEnabledState = gatewayDeviceConfig.HubEnabledState;
+            this.GatewayDeviceConfig.DeviceProperties.HubEnabledState = gatewayDeviceConfig.ReportEnabledState;
             this.GatewayDeviceConfig.DeviceProperties.CreatedTime = DateTime.UtcNow.ToString();
         }
         /**
         Initialize and Send DeviceInfo message
          */
-        public static async Task Start(object userContext, CancellationToken cancelToken){
-            var userContextValues  = userContext as Tuple<ModuleClient, GatewayController>;
-            if (userContextValues == null)
-            {
-                throw new InvalidOperationException("UserContext doesn't contain expected values");
-            }
-                ModuleClient ioTHubModuleClient = userContextValues.Item1;
-                GatewayController gatewayHandle = userContextValues.Item2;
-                Twin twin = await ioTHubModuleClient.GetTwinAsync();                
+        public static async Task<GatewayController> Start( ModuleClient ioTHubModuleClient, Twin moduleTwin, CancellationToken cancelToken){
+            
+                if (moduleTwin == null || moduleTwin.Properties == null)
+                {
+                    throw new ArgumentOutOfRangeException("No module Twin desired properties provided.");
+                }
+                GatewayModel  gatewayDeviceConfig = CreateGatewayModel(moduleTwin.Properties.Desired);
 
+                GatewayController gatewayHandle = new GatewayController(gatewayDeviceConfig);
+                          
                 DeviceProperties gatewayProperties = gatewayHandle.GatewayDeviceConfig.DeviceProperties;                 
-                gatewayProperties.DeviceID = twin.ModuleId;   
+                gatewayProperties.DeviceID = moduleTwin.ModuleId;   
                              
                 // This is the place you can specify the metadata for your device. The below fields are not mandatory.
                 
@@ -76,19 +75,24 @@ namespace abbRemoteMonitoringGateway
                     while (true)
                     {
 
-                        if (gatewayHandle.GatewayConfig.HubEnabledState)
+                        if (gatewayHandle.GatewayConfig.ReportEnabledState)
                         {
                             
-                                if (gatewayHandle.Telemetry.Count > 0){// Send current telemetry data
+                                
                                     bool hasMutex = false;
                                     try{ 
-                                        hasMutex = gatewayHandle.telemetryMutex.WaitOne(gatewayHandle.GatewayConfig.PoolingInterval);
+                                        hasMutex = gatewayHandle.telemetryMutex.WaitOne(gatewayHandle.GatewayConfig.ReportingInterval);
                                         if (hasMutex){
-                                            
-                                            gatewayHandle.SendData(ioTHubModuleClient, gatewayHandle.Telemetry);
-                                            gatewayHandle.Telemetry.Clear();
+                                            if (gatewayHandle.Telemetry.Count > 0){// Send current telemetry data            
+                                                gatewayHandle.SendData(ioTHubModuleClient, gatewayHandle.Telemetry);
+                                                gatewayHandle.Telemetry.Clear();
+                                            }
+                                            if (gatewayHandle.IsDeviceInfoUpdated){// Send DeviceInfo structure  
+                                                gatewayHandle.SendData(ioTHubModuleClient, gatewayHandle.GatewayDeviceConfig);
+                                                gatewayHandle.IsDeviceInfoUpdated = false;
+                                            }
                                         }else{
-                                            Console.WriteLine("Error. Can't get mutext for telemetry data for {0} ms. Timeout!", gatewayHandle.GatewayConfig.PoolingInterval);
+                                            Console.WriteLine("Error. Can't get mutext for telemetry data for {0} ms. Timeout!", gatewayHandle.GatewayConfig.ReportingInterval);
                                         }
                                     }finally{
                                             if (hasMutex)
@@ -96,13 +100,9 @@ namespace abbRemoteMonitoringGateway
                                                gatewayHandle.telemetryMutex.ReleaseMutex();
                                             }
                                     }
-                                }
-                            
-                            if (gatewayHandle.IsDeviceInfoUpdated){
-                                gatewayHandle.SendData(ioTHubModuleClient, gatewayHandle.GatewayDeviceConfig);
-                            }
+                                                                                        
                         }
-                        await Task.Delay(gatewayHandle.GatewayConfig.PoolingInterval);
+                        await Task.Delay(gatewayHandle.GatewayConfig.ReportingInterval);
 
                         if (cancelToken.IsCancellationRequested)
                         {
@@ -112,8 +112,53 @@ namespace abbRemoteMonitoringGateway
                         }
                     }
                 }, cancelToken);
+
+                return gatewayHandle;
         }
-        
+
+      public static GatewayModel CreateGatewayModel(TwinCollection settings){   
+
+            string  serializedStr = JsonConvert.SerializeObject(settings);
+            if (string.IsNullOrEmpty(serializedStr))
+            {
+                throw new ArgumentOutOfRangeException("No configuration provided for the module Twin.");
+            }          
+            else
+            {
+                Console.WriteLine(String.Format("Attempt to parse configuration JSON: {0}", serializedStr));                
+                GatewayModel model = JsonConvert.DeserializeObject<GatewayModel>(serializedStr);
+                if (model == null){
+                    throw new ArgumentOutOfRangeException("Errorparsing gateway twin settings");
+                }else{
+                    return model;
+                }               
+            }
+        }        
+        public void UpdateGatewayModel(GatewayModel config){
+            
+             bool hasMutex = false;
+            try{ 
+                hasMutex = this.telemetryMutex.WaitOne(this.GatewayConfig.ReportingInterval);
+                if (hasMutex){
+                    this.GatewayConfig.ReportEnabledState = config.ReportEnabledState;
+                    this.GatewayConfig.ReportingInterval = config.ReportingInterval;
+                    
+                    // Clear DeviceInfo, it will be updated soon  
+                    // TODO: Copy telemetry matched metadata from existing GatewayDeviceConfig
+                    this.GatewayDeviceConfig.Telemetry.Clear();
+                        
+                }else{
+                    Console.WriteLine("Error. Can't get mutext for telemetry data for {0} ms. Timeout!", this.GatewayConfig.ReportingInterval);
+                }
+            }finally{
+                    if (hasMutex)
+                    {
+                        this.telemetryMutex.ReleaseMutex();
+                    }
+            }
+            
+        }
+
         private async void SendData(ModuleClient ioTHubModuleClient, object data)
         {
             try
@@ -124,13 +169,14 @@ namespace abbRemoteMonitoringGateway
                     return;
                 }
 
-                string serializedStr = JsonConvert.SerializeObject(data);
+                string serializedStr = JsonConvert.SerializeObject(data);                
                 byte [] messageBytes = Encoding.ASCII.GetBytes(serializedStr);
 
                     Message  pipeMessage =  new Message(messageBytes);
                     pipeMessage.Properties.Add("content-type", "application/rm-gw-json");
                  
                     await ioTHubModuleClient.SendEventAsync("remoteMonitoringOutput", pipeMessage);                            
+                    Console.WriteLine(String.Format("Sent message: {0}", serializedStr));
             }
             catch (System.Exception e)
             {
@@ -144,7 +190,7 @@ namespace abbRemoteMonitoringGateway
                 bool hasMutex = false;
 
                 try{
-                    hasMutex = this.telemetryMutex.WaitOne(this.GatewayConfig.PoolingInterval);
+                    hasMutex = this.telemetryMutex.WaitOne(this.GatewayConfig.ReportingInterval);
                     if (hasMutex){
                             foreach(SignalTelemetry signalData in telemetryData){
                                 
@@ -161,12 +207,19 @@ namespace abbRemoteMonitoringGateway
                                             // Use string as a default value type                    
                                             value = signalData.Value;
                                         }
-                                        this.Telemetry.Add(signalData.Name, value);                        
+                                        
+                                        if (this.Telemetry.ContainsKey(signalData.Name)){
+                                             this.Telemetry[signalData.Name] = value;
+                                        }else{
+                                            this.Telemetry.Add(signalData.Name, value); 
+                                        }
+
+                                                                   
                                     }
                         }
                     }
                     else{
-                        throw new InvalidOperationException(String.Format("Can't handle telemetry. Timeout after {0} ms. ", this.GatewayConfig.PoolingInterval)); 
+                        throw new InvalidOperationException(String.Format("Can't handle telemetry. Timeout after {0} ms. ", this.GatewayConfig.ReportingInterval)); 
                     }
                 }
                 finally{
@@ -182,8 +235,8 @@ namespace abbRemoteMonitoringGateway
         */
             private TelemetryFormat GetMetadataForTelemetry(SignalTelemetry signalData){
 
-                if (this.GatewayConfig.Telemetry.ContainsKey(signalData.Name)){
-                    TelemetryFormat gwConfigMetadata = this.GatewayConfig.Telemetry.GetValueOrDefault(signalData.Name);
+                if (this.GatewayConfig.ReportedTelemetry.ContainsKey(signalData.Name)){
+                    TelemetryMetadataModel gwConfigMetadata = this.GatewayConfig.ReportedTelemetry.GetValueOrDefault(signalData.Name);
                     
                     // Construct metadata
                     TelemetryFormat telemetryMetaData = new TelemetryFormat(){
@@ -194,6 +247,8 @@ namespace abbRemoteMonitoringGateway
                     // Check if we have metadata description in monitoring device
                     if (!this.GatewayDeviceConfig.Telemetry.Contains(telemetryMetaData)){
                         this.GatewayDeviceConfig.Telemetry.Add(telemetryMetaData);
+                        Console.WriteLine(String.Format("Telemetry configured for remote monitoring: Name: {0}, Type: {1}, DisplayName: {2}", 
+                                                    telemetryMetaData.Name, telemetryMetaData.Type, telemetryMetaData.DisplayName));
                         this.IsDeviceInfoUpdated = true;
                     }
                 
@@ -208,11 +263,17 @@ namespace abbRemoteMonitoringGateway
     
 
     public class GatewayModel
-    {        
-        public int PoolingInterval = 2000;
-        public bool HubEnabledState = true;        
-        public Dictionary<string, Command> Commands;        
-        public Dictionary<string, TelemetryFormat> Telemetry;
+    {            
+        public int ReportingInterval {get; set;}
+        public bool ReportEnabledState {get; set;}
+        
+ //       public Dictionary<string, Command> Commands;        
+        public Dictionary<string, TelemetryMetadataModel> ReportedTelemetry;
+  
+    }
+
+    public class TelemetryMetadataModel{
+        public string DisplayName {get; set;}
     }
 
 

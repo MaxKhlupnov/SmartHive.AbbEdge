@@ -213,34 +213,15 @@
     },
     "abbRemoteMonitoringGateway":{
       "properties.desired": {
-        "GatewayConfig": 
-        {
-          "PoolingInterval": 2000,
-          "HubEnabledState": true,
-          "Commands":{ 
-          "StartTelemetry":
-            {              
-              "DeliveryType": 0,
-              "Parameters": {},
-              "Description": "Instructs the gateway module to start sending telemetry."
-            },
-            "StopTelemetry": {              
-              "DeliveryType": 0,
-              "Parameters": {},
-              "Description": "Instructs the gateway module stop sending telemetry."
-            }
-          }
-          ,
-          "Telemetry": {
+          "ReportingInterval": 2000,
+          "ReportEnabledState": true,
+          "ReportedTelemetry": {
             "Speed": {              
-              "DisplayName": "Drive speed",
-              "Type": "double"
+              "DisplayName": "Drive speed"              
             },
             "Torque": {              
-              "DisplayName": "Drive torque",
-              "Type": "double"
-            }
-          }
+              "DisplayName": "Drive torque"              
+            }          
         }              
       }
     }
