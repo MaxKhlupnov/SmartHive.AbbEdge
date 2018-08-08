@@ -9,4 +9,4 @@
 <li><a href="https://github.com/MaxKhlupnov/SmartHive.AbbEdge/tree/master/AbbEdge/modules/abbRemoteMonitoringGateway">Remote monitoring gateway module</a> for sending telemetry to the cloud</li>
 </ul>
 <h1>How to deploy</h1>
-<li>Install ModBus TCP support with <a href='https://new.abb.com/drives/connectivity/fieldbus-connectivity/modbus-tcp/fena-11'FENA module</a> to collect ABB drive telemetry via Modbus TCP to IoT Edge gateway over Ethernet network</li>
+<li>Install ModBus TCP support with <a href='https://new.abb.com/drives/connectivity/fieldbus-connectivity/modbus-tcp/fena-11'>FENA module</a> to collect ABB drive telemetry via Modbus TCP to IoT Edge gateway over Ethernet network</li>
