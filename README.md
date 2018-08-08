@@ -22,4 +22,8 @@
     </ol>
   </p>
 </li>
+<li>Check IoT Edge modules up and running via Azure Portal<br>
+<img src="https://github.com/MaxKhlupnov/SmartHive.AbbEdge/blob/master/Docs/Images/EdgeModulesPicture.PNG?raw=true"/></li>
+<li>Use IoT Hub Device Explorer to trace messages from ACS drive to IoT Hub<br/>
+<img src='https://github.com/MaxKhlupnov/SmartHive.AbbEdge/blob/master/Docs/Images/DeviceExplorer.png?raw=true'/></li>
 </ul>
