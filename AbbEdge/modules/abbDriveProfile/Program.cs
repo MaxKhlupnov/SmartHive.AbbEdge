@@ -205,6 +205,11 @@ namespace abbDriveProfile
                     Console.WriteLine("Error creating modbus message handler. Message processing stopped.");
                 }
 
+                // Report current module config via moduleTwin
+                serializedStr = JsonConvert.SerializeObject(config); 
+                TwinCollection reported = JsonConvert.DeserializeObject<TwinCollection>(serializedStr);
+                await ioTHubModuleClient.UpdateReportedPropertiesAsync(reported);                
+
             }
 
         }

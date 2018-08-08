@@ -72,7 +72,7 @@ namespace abbRemoteMonitoringGateway
             
             // Attach callback for Twin desired properties updates
             await ioTHubModuleClient.SetDesiredPropertyUpdateCallbackAsync(OnDesiredPropertiesUpdate, userContext);
-
+             
             Console.WriteLine("Setting up cancelation for controler handler process.");
             AssemblyLoadContext.Default.Unloading += (ctx) => cts.Cancel();
             Console.CancelKeyPress += (sender, cpe) => cts.Cancel();           

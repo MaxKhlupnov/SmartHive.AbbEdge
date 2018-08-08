@@ -154,8 +154,10 @@ namespace abbDriveProfile
 
                         if (result != null)
                         {
+
                             Console.WriteLine("Result: {0}", result);
-                            return new SignalTelemetry { Name = this.SignalName, ValueType = this.config.ValueType, Value = result.ToString(), ValueUnit = this.config.ValueUnit };
+                            return new SignalTelemetry { Name = this.SignalName, ValueType = this.config.ValueType, 
+                                            Value = ValueAsString(result,this.config), ValueUnit = this.config.ValueUnit };
                         }
                     }
                 }
@@ -175,6 +177,22 @@ namespace abbDriveProfile
                 return null;
         }
          
+        private static string ValueAsString(object value, DriveProfileSignalConfig signalConfig){
+            if (value == null)
+                throw new ArgumentNullException(String.Format("Calculation value is null for formula {0}", signalConfig.ValueFormula));
+
+            try{
+            if (signalConfig.ValueType.Equals("Double", StringComparison.InvariantCultureIgnoreCase))
+                  return ((double) value).ToString("#.###");
+                        
+            }catch(Exception ex){
+                Console.WriteLine(String.Format("Error {0} casting formula {1} result as {2}", ex.Message, signalConfig.ValueFormula, signalConfig.ValueType));
+            }
+
+            return value.ToString();
+        }
+
+
         private int[] ExtractParamValues(ModbusOutContent config)
         {
             int[] paramVal = new int[this.ParameterNames.Length];

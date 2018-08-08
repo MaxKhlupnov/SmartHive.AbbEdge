@@ -87,8 +87,10 @@ namespace abbRemoteMonitoringGateway
                                                 gatewayHandle.SendData(ioTHubModuleClient, gatewayHandle.Telemetry);
                                                 gatewayHandle.Telemetry.Clear();
                                             }
-                                            if (gatewayHandle.IsDeviceInfoUpdated){// Send DeviceInfo structure  
-                                                gatewayHandle.SendData(ioTHubModuleClient, gatewayHandle.GatewayDeviceConfig);
+                                            if (gatewayHandle.IsDeviceInfoUpdated){// Send DeviceInfo structure into module twin
+                                                    string  serializedStr = JsonConvert.SerializeObject(gatewayHandle.GatewayDeviceConfig); 
+                                                    TwinCollection reported = JsonConvert.DeserializeObject<TwinCollection>(serializedStr);
+                                                    await ioTHubModuleClient.UpdateReportedPropertiesAsync(reported);
                                                 gatewayHandle.IsDeviceInfoUpdated = false;
                                             }
                                         }else{

@@ -116,12 +116,13 @@
                 "UnitId": "1",
                 "StartAddress": "400106",
                 "Count": "1",
-                "DisplayName": "Frequency"
+                "DisplayName": "Frequency",
+                "CorrelationId": "Frequency"
               },
               "Current": {
                 "PollingInterval": "1000",
                 "UnitId": "1",
-                "StartAddress": "400107",
+                "StartAddress": "400108",
                 "Count": "1",
                 "DisplayName": "Current"
               },
@@ -151,9 +152,10 @@
               "OutputPower": {
                 "PollingInterval": "1000",
                 "UnitId": "1",
-                "StartAddress": "400113",
+                "StartAddress": "400114",
                 "Count": "1",
-                "DisplayName": "OutputPower"
+                "DisplayName": "OutputPower",
+                "CorrelationId": "Power"
               },
               "InverterKWh": {
                 "PollingInterval": "1000",
@@ -174,14 +176,16 @@
                 "UnitId": "1",
                 "StartAddress": "404602",
                 "Count": "1",
-                "DisplayName": "FrequencyScale"
+                "DisplayName": "FrequencyScale",
+                "CorrelationId": "Frequency"
               },
               "PowerScale": {
                 "PollingInterval": "1000",
                 "UnitId": "1",
                 "StartAddress": "404604",
                 "Count": "1",
-                "DisplayName": "PowerScale"
+                "DisplayName": "PowerScale",
+                "CorrelationId": "Power"
               },
               "CurrentScale": {
                 "PollingInterval": "1000",
@@ -199,14 +203,34 @@
       "properties.desired": {
         "SignalConfigs": {
           "Speed": {
-            "ValueFormula": "Speed * SpeedScale / 20000",
+            "ValueFormula": "Speed * SpeedScale / 20000.0",
             "ValueType": "Double",
             "ValueUnit": "rpm"
           },
           "Torque": {
-            "ValueFormula": "Torque * TorqueScale / 10000",
+            "ValueFormula": "Torque * TorqueScale / (10.0*10000)",
             "ValueType": "Double",
             "ValueUnit": "%"
+          },
+          "Frequency": {
+            "ValueFormula": "Frequency * FrequencyScale / (10.0*20000)",
+            "ValueType": "Double",
+            "ValueUnit": "Hz"
+          },
+          "Current": {
+            "ValueFormula": "Current * 1.2 / 100",
+            "ValueType": "Double",
+            "ValueUnit": "A"
+          },
+          "Power": {
+            "ValueFormula": "OutputPower * PowerScale/ 10000.0",
+            "ValueType": "Double",
+            "ValueUnit": "W"
+          },
+          "Energy": {
+            "ValueFormula": "InverterKWh/ 10.0",
+            "ValueType": "Double",
+            "ValueUnit": "kW"
           }
         }
       }
@@ -221,7 +245,19 @@
             },
             "Torque": {              
               "DisplayName": "Drive torque"              
-            }          
+            },
+            "Frequency": {
+              "DisplayName": "Drive frequency"
+            },            
+            "Current": {
+              "DisplayName": "Drive current"
+            },
+            "Power":{
+              "DisplayName": "Drive output power"
+            },            
+            "Energy":{
+              "DisplayName": "Drive consumed power"
+            }
         }              
       }
     }
