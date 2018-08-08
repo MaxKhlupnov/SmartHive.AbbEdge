@@ -16,9 +16,9 @@
 <li><a href='https://docs.microsoft.com/en-us/azure/iot-edge/'>Deploy Azure IoT Edge runtime</a> on some IoT Gateway devices. Connect this deices into the same Ethernet network as ACS Drive FENA adapter. Assign correct IP address and make sure your IoT Gatewy devices can ping ABB FENA adpater.</li>
   <li>Deploy and configure IoT Edge modules
    <ol>
-  <li>iot-edge-modbus</li>
-  <li>abbDriveProfile</li>
-  <li>abbRemoteMonitoringGateway</li>
+  <li><a href="https://github.com/MaxKhlupnov/SmartHive.AbbEdge/blob/master/Docs/Modbus-module-configuration.md">iot-edge-modbus</a></li>
+  <li><a href="https://github.com/MaxKhlupnov/SmartHive.AbbEdge/blob/master/Docs/abbDriveProfile-module-configuration.md">abbDriveProfile</a></li>
+  <li><a href="https://github.com/MaxKhlupnov/SmartHive.AbbEdge/blob/master/Docs/abbRemoteMonitoringGateway.md">abbRemoteMonitoringGateway</a></li>
     </ol>
   </p>
 </li>
