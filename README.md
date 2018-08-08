@@ -8,6 +8,8 @@
 <li><a href="https://github.com/MaxKhlupnov/SmartHive.AbbEdge/tree/master/AbbEdge/modules/abbDriveProfile">Abb drive profile module</a> for translation Modbus register values into electric drive physical parameters</li>
 <li><a href="https://github.com/MaxKhlupnov/SmartHive.AbbEdge/tree/master/AbbEdge/modules/abbRemoteMonitoringGateway">Remote monitoring gateway module</a> for sending telemetry to the cloud</li>
 </ul>
+<h3>Architecture diagram</h3>
+<img src="https://github.com/MaxKhlupnov/SmartHive.AbbEdge/blob/master/Docs/Images/Architecture.jpg?raw=true"/>
 <h1>How to deploy</h1>
 <ul>
 <li>Install <a href='https://new.abb.com/drives/connectivity/fieldbus-connectivity/modbus-tcp/fena-11'>FENA module</a> and configure ModBus TCP support to collect ABB drive telemetry from IoT Edge gateway over Ethernet network</li>
