@@ -6,6 +6,6 @@
 <li><a href="https://github.com/Azure/iotedge">Microsoft IoT Edge platform</a> to build IoT Gateway and run modules.</li>
 <li><a href="https://github.com/Azure/iot-edge-modbus">Modbus protocol module</a> for use with the Azure IoT Edge.</li>
 <li><a href="https://github.com/MaxKhlupnov/SmartHive.AbbEdge/tree/master/AbbEdge/modules/abbDriveProfile">Abb drive profile module</a> for translation Modbus register values into electric drive physical parameters</li>
-<li>< a href="https://github.com/MaxKhlupnov/SmartHive.AbbEdge/tree/master/AbbEdge/modules/abbRemoteMonitoringGateway">Remote monitoring gateway module</a> for sending telemetry to the cloud</li>
+<li><a href="https://github.com/MaxKhlupnov/SmartHive.AbbEdge/tree/master/AbbEdge/modules/abbRemoteMonitoringGateway">Remote monitoring gateway module</a> for sending telemetry to the cloud</li>
 </ul>
 
