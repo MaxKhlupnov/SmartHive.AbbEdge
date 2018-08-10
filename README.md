@@ -28,14 +28,14 @@
 		<li>Add <strong>abbRemoteMonitoringGateway module</strong> as described<a href="https://github.com/MaxKhlupnov/SmartHive.AbbEdge/blob/master/Docs/abbRemoteMonitoringGateway.md">here</a></li>
 		<li>Select <strong>Next</strong>.</li>
 		<li><p>In the <strong>Specify Routes</strong> step, copy the following JSON into the text box. </p>
-			<pre>
-			"routes": {
-				"modbusToAbbAcsEdgeProfile": "FROM /messages/modules/modbus/outputs/modbusOutput INTO BrokeredEndpoint(\"/modules/abbDriveProfile/inputs/driveProfileInput\")",
-				"abbDriveProfileToRemoteMonitoringGateway": "FROM /messages/modules/abbDriveProfile/outputs/driveProfileOutput INTO BrokeredEndpoint(\"/modules/abbRemoteMonitoringGateway/inputs/gatewayInput\")",          
-				"abbRemoteMonitoringGatewayToIoTHub": "FROM /messages/modules/abbRemoteMonitoringGateway/outputs/* INTO $upstream"
-			}
-			</pre>
-			<ol>
+		<pre>
+"routes": {
+	"modbusToAbbAcsEdgeProfile": "FROM /messages/modules/modbus/outputs/modbusOutput INTO BrokeredEndpoint(\"/modules/abbDriveProfile/inputs/driveProfileInput\")",
+	"abbDriveProfileToRemoteMonitoringGateway": "FROM /messages/modules/abbDriveProfile/outputs/driveProfileOutput INTO BrokeredEndpoint(\"/modules/abbRemoteMonitoringGateway/inputs/gatewayInput\")",          
+	"abbRemoteMonitoringGatewayToIoTHub": "FROM /messages/modules/abbRemoteMonitoringGateway/outputs/* INTO $upstream"
+}
+		</pre>
+		<ul>
 			<li>Route "modbusToAbbAcsEdgeProfile" sends all messages collected by the Modbus module to abbDriveProfile module for actual  parameters calculation. 
 			In this route, ''modbusOutput'' is the endpoint that Modbus module use to output data, and driveProfileInput is the endpoint that abbDriveProfile use for reading data
 			and calculate actual parameter values based on modbus register values</li>
@@ -49,10 +49,11 @@
 			<li>In the <strong>Review Deployment</strong> step, select <strong>Submit</strong>. </li>
 			<li>Return to the device details page and select <strong>Refresh</strong>. You should see the new <strong>modbus</strong> module running along with the IoT Edge runtime.</li>
 			<img src="https://github.com/MaxKhlupnov/SmartHive.AbbEdge/blob/master/Docs/Images/EdgeModulesPicture.PNG?raw=true"/>
-    </ol>  
+		</ul> 
+	</li>
 	<li>Use IoT Hub Device Explorer to trace messages from ACS drive to IoT Hub<br/>
 	<img src='https://github.com/MaxKhlupnov/SmartHive.AbbEdge/blob/master/Docs/Images/DeviceExplorer.png?raw=true'/></li>
 	<li>Check your Azure remote monitoring solution web portal graphs for telemetry<br>
-	<img src="https://github.com/MaxKhlupnov/SmartHive.AbbEdge/blob/master/Docs/Images/RemoteMonitoring.png?raw=true">
+	<img src="https://github.com/MaxKhlupnov/SmartHive.AbbEdge/blob/master/Docs/Images/RemoteMonitoring.jpg?raw=true">
 	</li>
 </ul>
