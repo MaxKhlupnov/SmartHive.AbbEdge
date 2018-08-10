@@ -88,15 +88,19 @@ namespace abbRemoteMonitoringGateway
                                                 gatewayHandle.Telemetry.Clear();
                                             }
                                             if (gatewayHandle.IsDeviceInfoUpdated){// Send DeviceInfo structure into module twin
+
                                                     string  serializedStr = JsonConvert.SerializeObject(gatewayHandle.GatewayDeviceConfig); 
                                                     TwinCollection reported = JsonConvert.DeserializeObject<TwinCollection>(serializedStr);
-                                                    await ioTHubModuleClient.UpdateReportedPropertiesAsync(reported);
-                                                gatewayHandle.IsDeviceInfoUpdated = false;
+                                                    await ioTHubModuleClient.UpdateReportedPropertiesAsync(reported);                                                    
+                                                    gatewayHandle.IsDeviceInfoUpdated = false;                                                 
                                             }
                                         }else{
                                             Console.WriteLine("Error. Can't get mutext for telemetry data for {0} ms. Timeout!", gatewayHandle.GatewayConfig.ReportingInterval);
                                         }
-                                    }finally{
+                                    }catch(Exception ex){
+                                            Console.WriteLine("Error upload data: {0}, {1}", ex.Message, ex.StackTrace);
+                                    }
+                                    finally{
                                             if (hasMutex)
                                             {
                                                gatewayHandle.telemetryMutex.ReleaseMutex();
@@ -197,7 +201,7 @@ namespace abbRemoteMonitoringGateway
                             foreach(SignalTelemetry signalData in telemetryData){
                                 
                                     TelemetryFormat telemetryMetaData = GetMetadataForTelemetry(signalData);
-                                    if (telemetryMetaData != null){
+                                    if (telemetryMetaData != null && !String.IsNullOrEmpty(signalData.Value)){
                                         
                                         object value = null;
                                         // convert telemetry value based on specified data type
@@ -215,8 +219,8 @@ namespace abbRemoteMonitoringGateway
                                         }else{
                                             this.Telemetry.Add(signalData.Name, value); 
                                         }
-
-                                                                   
+                                    }else{
+                                        Console.WriteLine("Error processing signal {0} value {1}", signalData.Name, signalData.Value);
                                     }
                         }
                     }
@@ -256,7 +260,7 @@ namespace abbRemoteMonitoringGateway
                 
                     return telemetryMetaData;
                 }else{
-                    Console.WriteLine("Signal {0} is not configured for reporting at the module Twin ");
+                    Console.WriteLine("Signal {0} is not configured for reporting at the module Twin ", signalData.Name);
                     return null;
                 }
                 

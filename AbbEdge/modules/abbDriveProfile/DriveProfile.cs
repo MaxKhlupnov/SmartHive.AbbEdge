@@ -157,7 +157,8 @@ namespace abbDriveProfile
 
                             Console.WriteLine("Result: {0}", result);
                             return new SignalTelemetry { Name = this.SignalName, ValueType = this.config.ValueType, 
-                                            Value = ValueAsString(result,this.config), ValueUnit = this.config.ValueUnit };
+                                            Value = result.ToString(),/*ValueAsString(result,this.config),*/
+                                             ValueUnit = this.config.ValueUnit };
                         }
                     }
                 }

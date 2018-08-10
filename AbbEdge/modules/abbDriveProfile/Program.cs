@@ -53,7 +53,8 @@ namespace abbDriveProfile
             ITransportSettings[] settings = { mqttSetting };
 
             // Open a connection to the Edge runtime
-            ModuleClient ioTHubModuleClient = await ModuleClient.CreateFromEnvironmentAsync(settings);            
+            ModuleClient ioTHubModuleClient = await ModuleClient.CreateFromEnvironmentAsync(settings);
+            
             await ioTHubModuleClient.OpenAsync();
             Console.WriteLine("IoT Hub module client initialized.");
            
@@ -107,7 +108,7 @@ namespace abbDriveProfile
                     pipeMessage .Properties.Add("content-type", "application/edge-modbus-json");
                  
                     await moduleClient.SendEventAsync("driveProfileOutput", pipeMessage);
-                    Console.WriteLine("Telemetry message sent");
+                    Console.WriteLine("Telemetry message succesfully sent: {0}", serializedStr);
                 }
             }
             else

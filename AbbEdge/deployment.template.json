@@ -223,7 +223,7 @@
             "ValueUnit": "A"
           },
           "Power": {
-            "ValueFormula": "OutputPower * PowerScale/ 10000.0",
+            "ValueFormula": "OutputPower * 1.8",
             "ValueType": "Double",
             "ValueUnit": "W"
           },
