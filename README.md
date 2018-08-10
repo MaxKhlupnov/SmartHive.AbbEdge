@@ -50,6 +50,7 @@
 			<li>Return to the device details page and select <strong>Refresh</strong>. You should see the new <strong>modbus</strong> module running along with the IoT Edge runtime.</li>
 			<img src="https://github.com/MaxKhlupnov/SmartHive.AbbEdge/blob/master/Docs/Images/EdgeModulesPicture.PNG?raw=true"/>
 		</ul> 
+	</ol>
 	</li>
 	<li>Use IoT Hub Device Explorer to trace messages from ACS drive to IoT Hub<br/>
 	<img src='https://github.com/MaxKhlupnov/SmartHive.AbbEdge/blob/master/Docs/Images/DeviceExplorer.png?raw=true'/></li>
