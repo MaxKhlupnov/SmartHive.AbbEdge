@@ -51,6 +51,8 @@ namespace abbDriveProfile
     }
 
     public class SignalTelemetry{
+        public string HwId { get; set; }
+        public string SourceTimestamp { get; set; }
         public string Name { get; set; }
         public string Value { get; set; }
         public string ValueType { get; set; }
@@ -156,9 +158,11 @@ namespace abbDriveProfile
                         {
 
                             Console.WriteLine("Result: {0}", result);
-                            return new SignalTelemetry { Name = this.SignalName, ValueType = this.config.ValueType, 
-                                            Value = result.ToString(),/*ValueAsString(result,this.config),*/
-                                             ValueUnit = this.config.ValueUnit };
+                            return new SignalTelemetry {HwId = content.HwId,
+                                            SourceTimestamp = content.Data != null && content.Data.Count > 0 ? content.Data[0].SourceTimestamp : DateTime.UtcNow.ToString(),
+                                            Name = this.SignalName, ValueType = this.config.ValueType, 
+                                            Value = result.ToString(),
+                                            ValueUnit = this.config.ValueUnit};
                         }
                     }
                 }
@@ -166,34 +170,10 @@ namespace abbDriveProfile
                     Console.WriteLine("Result calculation is empty for signal {0}", this.SignalName);
                 
             }
-
-            //  processor.ProcessSignalAsDouble(modbusMessage);
-            // TODO Calculate signal value
-            // TODO: support different return
-            /*
-            if (ValueTypeDouble.Equals(this.config.ValueType, StringComparison.InvariantCultureIgnoreCase))
-            {            }
-            else{                    Console.WriteLine($"Unknown signal type: {this.config.ValueType}");                }*/
-
+         
                 return null;
         }
          
-        private static string ValueAsString(object value, DriveProfileSignalConfig signalConfig){
-            if (value == null)
-                throw new ArgumentNullException(String.Format("Calculation value is null for formula {0}", signalConfig.ValueFormula));
-
-            try{
-            if (signalConfig.ValueType.Equals("Double", StringComparison.InvariantCultureIgnoreCase))
-                  return ((double) value).ToString("#.###");
-                        
-            }catch(Exception ex){
-                Console.WriteLine(String.Format("Error {0} casting formula {1} result as {2}", ex.Message, signalConfig.ValueFormula, signalConfig.ValueType));
-            }
-
-            return value.ToString();
-        }
-
-
         private int[] ExtractParamValues(ModbusOutContent config)
         {
             int[] paramVal = new int[this.ParameterNames.Length];
@@ -235,8 +215,6 @@ namespace abbDriveProfile
 
     class DriveProfileConfig{
        internal const string DriveProfileConfigSection = "SignalConfigs";
-       /**  File name for storing module stiings on the edge */
-       //internal const string DriveProfileConfigFileName = "abb-drive-profile-config.json";
         
         /** Configuration of drive signals (usually actuals) */
        public Dictionary <string, DriveProfileSignalConfig> SignalConfigs;
