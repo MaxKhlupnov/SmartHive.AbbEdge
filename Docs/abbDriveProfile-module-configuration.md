@@ -51,6 +51,6 @@
 	</pre>
 	</li>
 	<li>Click "Save" and add abbDriveProfileModule to continue</br>
-		<img src='https://github.com/MaxKhlupnov/SmartHive.AbbEdge/blob/master/Docs/Images/RemoteMonitoring.png?raw=true'>
+		<img src='https://github.com/MaxKhlupnov/SmartHive.AbbEdge/blob/master/Docs/Images/AbbDriveProfileModuleDeployment.JPG?raw=true'>
 	</li>
 </ol>
