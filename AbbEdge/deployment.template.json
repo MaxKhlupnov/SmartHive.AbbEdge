@@ -47,7 +47,7 @@
             "status": "running",
             "restartPolicy": "always",
             "settings": {
-              "image": "microsoft/azureiotedge-modbus-tcp:GA-preview-amd64",
+              "image": "mcr.microsoft.com/azureiotedge/modbus:1.0",
               "createOptions": ""
             }
           },
