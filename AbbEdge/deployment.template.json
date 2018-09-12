@@ -236,30 +236,28 @@
       }
     },
     "abbRemoteMonitoringGateway":{
-      "properties.desired": {
-          "ReportingInterval": 2000,
-          "ReportEnabledState": true,
-          "ReportedTelemetry": {
-            "Speed": {              
-              "DisplayName": "Drive speed"              
+      "properties.desired": { 
+        "ReportingInterval": 2000,        
+          "ReportEnabledState": true,          
+          "DownstreamDevices": {
+            "ABB-ACS580-01-02A6-4" : {
+                "ConnectionString": "$IOTHUB_DEVICE1_CONNECTION_STRING",
+                "Type": "Drive",
+                "Location": "Microsoft Technology Center",
+                "Latitiude": 55.779049,
+                "Longitude": 37.588602,
+                "ReportedTelemetry": "Speed,Torque,Frequency,Current,Power,Energy"                 
             },
-            "Torque": {              
-              "DisplayName": "Drive torque"              
-            },
-            "Frequency": {
-              "DisplayName": "Drive frequency"
-            },            
-            "Current": {
-              "DisplayName": "Drive current"
-            },
-            "Power":{
-              "DisplayName": "Drive output power"
-            },            
-            "Energy":{
-              "DisplayName": "Drive consumed power"
+            "ABB-ACS880-1" : {             
+              "ConnectionString": "$IOTHUB_DEVICE2_CONNECTION_STRING",
+              "Type": "Drive",              
+              "Location": "Microsoft Technology Center",
+              "Latitiude": 55.779049,
+              "Longitude": 37.588602,
+              "ReportedTelemetry": "Speed,Torque,Frequency,Current,Power,Energy"                 
             }
+          }
         }              
-      }
-    }
+      }    
   }
 }

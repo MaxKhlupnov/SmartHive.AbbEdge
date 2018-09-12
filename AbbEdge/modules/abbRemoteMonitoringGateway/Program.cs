@@ -63,7 +63,8 @@ namespace abbRemoteMonitoringGateway
 
             // Read Module Twin Desired Properties       
             Console.WriteLine("Starting Gateway controller handler process.");
-            GatewayController controller = await GatewayController.Start(ioTHubModuleClient, moduleTwin, cts.Token);
+             GatewayModel gatewayConfigModel = GatewayController.CreateGatewayModel(moduleTwin.Properties.Desired);
+            GatewayController controller = await GatewayController.Init(gatewayConfigModel, cts.Token);
             var userContext = new Tuple<ModuleClient, GatewayController>(ioTHubModuleClient, controller);
             
             // Register callback to be called when a message is received by the module
@@ -87,6 +88,7 @@ namespace abbRemoteMonitoringGateway
         /// </summary>
         static async Task<MessageResponse> PipeMessage(Message message, object userContext)
         {
+            try{
             var userContextValues  = userContext as Tuple<ModuleClient, GatewayController>;
             if (userContextValues == null)
             {
@@ -98,8 +100,8 @@ namespace abbRemoteMonitoringGateway
             if (gatewayHandle.GatewayConfig == null){
                 Console.WriteLine("Module configuration is empty. Message processing terminated");
                 return MessageResponse.Abandoned;             
-            }else if (gatewayHandle.GatewayConfig.ReportedTelemetry == null){
-                Console.WriteLine("No telemetry signals configured for remote monitoring. Message processing terminated");
+            }else if (gatewayHandle.GatewayConfig.DownstreamDevices == null){
+                Console.WriteLine("No devices  configured for remote monitoring.");
                  return MessageResponse.Abandoned;   
             }
 
@@ -118,9 +120,14 @@ namespace abbRemoteMonitoringGateway
                  }               
                 
             }else{                
-                throw new InvalidOperationException("Error: message body is empty");                 
+                Console.WriteLine("Error: message body is empty");
+                return MessageResponse.Abandoned;  
             }
-            return MessageResponse.Completed;
+                return MessageResponse.Completed;
+            }catch(Exception ex){
+                Console.WriteLine("Error: {0}, trace {1}", ex.Message, ex.StackTrace);                
+                return MessageResponse.Abandoned;
+            }
         }
 
         /// <summary>
