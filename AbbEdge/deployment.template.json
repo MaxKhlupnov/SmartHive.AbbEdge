@@ -1,5 +1,5 @@
 {
-  "moduleContent": {
+  "modulesContent": {
     "$edgeAgent": {
       "properties.desired": {
         "schemaVersion": "1.0",
@@ -70,6 +70,16 @@
               "image": "${MODULES.abbRemoteMonitoringGateway.amd64.debug}",
               "createOptions": ""
             }
+          },
+          "driveAnomalyDetection": {
+            "version": "1.0",
+            "type": "docker",
+            "status": "running",
+            "restartPolicy": "always",
+            "settings": {
+              "image": "${MODULES.driveAnomalyDetection.amd64.debug}",
+              "createOptions": ""
+            }
           }
         }
       }
@@ -79,8 +89,9 @@
         "schemaVersion": "1.0",
         "routes": {
           "modbusToAbbAcsEdgeProfile": "FROM /messages/modules/modbus/outputs/modbusOutput INTO BrokeredEndpoint(\"/modules/abbDriveProfile/inputs/driveProfileInput\")",
-          "abbDriveProfileToRemoteMonitoringGateway": "FROM /messages/modules/abbDriveProfile/outputs/driveProfileOutput INTO BrokeredEndpoint(\"/modules/abbRemoteMonitoringGateway/inputs/gatewayInput\")",          
-          "abbRemoteMonitoringGatewayToIoTHub": "FROM /messages/modules/abbRemoteMonitoringGateway/outputs/* INTO $upstream"
+          "abbDriveProfileToRemoteMonitoringGateway": "FROM /messages/modules/abbDriveProfile/outputs/driveProfileOutput INTO BrokeredEndpoint(\"/modules/abbRemoteMonitoringGateway/inputs/gatewayInput\")",
+          "abbRemoteMonitoringGatewayToIoTHub": "FROM /messages/modules/abbRemoteMonitoringGateway/outputs/* INTO $upstream",
+          "driveAnomalyDetectionToIoTHub": "FROM /messages/modules/driveAnomalyDetection/outputs/* INTO $upstream"
         },
         "storeAndForwardConfiguration": {
           "timeToLiveSecs": 7200
@@ -235,29 +246,29 @@
         }
       }
     },
-    "abbRemoteMonitoringGateway":{
-      "properties.desired": { 
-        "ReportingInterval": 2000,        
-          "ReportEnabledState": true,          
-          "DownstreamDevices": {
-            "ABB-ACS580-01-02A6-4" : {
-                "ConnectionString": "$IOTHUB_DEVICE1_CONNECTION_STRING",
-                "Type": "Drive",
-                "Location": "Microsoft Technology Center",
-                "Latitiude": 55.779049,
-                "Longitude": 37.588602,
-                "ReportedTelemetry": "Speed,Torque,Frequency,Current,Power,Energy"                 
-            },
-            "ABB-ACS880-1" : {             
-              "ConnectionString": "$IOTHUB_DEVICE2_CONNECTION_STRING",
-              "Type": "Drive",              
-              "Location": "Microsoft Technology Center",
-              "Latitiude": 55.779049,
-              "Longitude": 37.588602,
-              "ReportedTelemetry": "Speed,Torque,Frequency,Current,Power,Energy"                 
-            }
+    "abbRemoteMonitoringGateway": {
+      "properties.desired": {
+        "ReportingInterval": 2000,
+        "ReportEnabledState": true,
+        "DownstreamDevices": {
+          "ABB-ACS580-01-02A6-4": {
+            "ConnectionString": "$IOTHUB_DEVICE1_CONNECTION_STRING",
+            "Type": "Drive",
+            "Location": "Microsoft Technology Center",
+            "Latitiude": 55.779049,
+            "Longitude": 37.588602,
+            "ReportedTelemetry": "Speed,Torque,Frequency,Current,Power,Energy"
+          },
+          "ABB-ACS880-1": {
+            "ConnectionString": "$IOTHUB_DEVICE2_CONNECTION_STRING",
+            "Type": "Drive",
+            "Location": "Microsoft Technology Center",
+            "Latitiude": 55.779049,
+            "Longitude": 37.588602,
+            "ReportedTelemetry": "Speed,Torque,Frequency,Current,Power,Energy"
           }
-        }              
-      }    
+        }
+      }
+    }
   }
 }
