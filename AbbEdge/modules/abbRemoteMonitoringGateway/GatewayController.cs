@@ -1,7 +1,8 @@
     using System;
     using System.IO;
     using System.Collections;
-    using System.Collections.Generic;
+    using System.Collections.Generic;    
+    using System.Linq;
     using System.Threading;
     using System.Threading.Tasks;
     using System.Runtime.InteropServices; 
@@ -45,13 +46,17 @@ namespace abbRemoteMonitoringGateway
                     GatewayController controller = new GatewayController(gatewayDeviceConfig);
                     InstallCert();
 
-                    foreach(string deviceId in gatewayDeviceConfig.DownstreamDevices.Keys){
+                    foreach(string HwId in gatewayDeviceConfig.DownstreamDevices.Keys){
                         DeviceConfig deviceConfig = null;
-                        if (gatewayDeviceConfig.DownstreamDevices.TryGetValue(deviceId, out deviceConfig)){
+                        if (gatewayDeviceConfig.DownstreamDevices.TryGetValue(HwId, out deviceConfig)){
 
-                         await Task.Run( async() => {
-                                DeviceController deviceController = await DeviceController.Init(deviceId,deviceConfig, cancelToken);                                
-                                controller.DeviceHandlers.Add(deviceId, deviceController);
+                        await Task.Run( async() => {
+                                DeviceController deviceController = await DeviceController.Init(HwId,deviceConfig, cancelToken);     
+                                if (deviceController != null) {                        
+                                    controller.DeviceHandlers.Add(HwId, deviceController);
+                                }else{
+                                    Console.WriteLine($"Error creating Device Controller for {HwId}");
+                                }
 
                          });
                         }else{
@@ -74,13 +79,15 @@ namespace abbRemoteMonitoringGateway
             {
                 // We cannot proceed further without a proper cert file
                 Console.WriteLine($"Missing path to certificate collection file: {certPath}");
-                throw new InvalidOperationException("Missing path to certificate file.");
+                return;
+                // throw new InvalidOperationException("Missing path to certificate file.");
             }
             else if (!File.Exists(certPath))
             {
                 // We cannot proceed further without a proper cert file
                 Console.WriteLine($"Missing path to certificate collection file: {certPath}");
-                throw new InvalidOperationException("Missing certificate file.");
+                 return;
+                //throw new InvalidOperationException("Missing certificate file.");
             }
             X509Store store = new X509Store(StoreName.Root, StoreLocation.CurrentUser);
             store.Open(OpenFlags.ReadWrite);
@@ -120,7 +127,20 @@ namespace abbRemoteMonitoringGateway
                         cntrl.ReportingInterval = config.ReportingInterval;
                         // Clear DeviceInfo, it will be updated soon  
                         // TODO: Copy telemetry matched metadata from existing GatewayDeviceConfig
-                        cntrl.ClearTelemetry();                    
+                        bool hasMutex = false;
+                        try{ 
+                            hasMutex = cntrl.telemetryMutex.WaitOne(cntrl.ReportingInterval);
+                            if (hasMutex){
+                                cntrl.Telemetry.Clear();                    
+                            }else{
+                            Console.WriteLine("Error. Can't get mutext for telemetry data for {0} ms. Timeout!", cntrl.ReportingInterval);
+                        }
+                    }finally{
+                        if (hasMutex)
+                        {
+                            cntrl.telemetryMutex.ReleaseMutex();
+                        }
+                    }         
                     }
         }
 
@@ -150,34 +170,86 @@ namespace abbRemoteMonitoringGateway
         }        
 
 
+        private async Task ProcessTelemetryForHwId(string HwId, SignalTelemetry[] telemetryData){
+                
+                if (telemetryData == null || telemetryData.Length == 0){
+                    Console.WriteLine(@"Warning: No telemetry in a batch for {HwId}");
+                }
+
+                DeviceController controller = null;
+                if (DeviceHandlers.TryGetValue(HwId, out controller)){
+                    
+                    Mutex mutex = Mutex.OpenExisting(HwId);
+                    bool acquiredMutex;
+                    try{ 
+                        
+                        if (mutex != null){
+                            
+                            try{
+                                acquiredMutex = mutex.WaitOne(TimeSpan.FromSeconds(15));
+                            }catch(AbandonedMutexException)
+                            {
+                                acquiredMutex = true;
+                            }
+
+                            try{
+                                if (acquiredMutex){
+                                    foreach(SignalTelemetry signalData in telemetryData){
+                                        object TelemetryValue = GetSignalValue(signalData);
+                                        if (controller.Telemetry.ContainsKey(signalData.Name)){
+                                            controller.Telemetry[signalData.Name] = TelemetryValue;
+                                        }else{
+                                            controller.Telemetry.Add(signalData.Name, TelemetryValue); 
+                                        }                                                                 
+                                            
+                                    } 
+                                    await controller.SendTelemetry();                                                                                                                                         
+
+                                    controller.Telemetry.Clear();
+                                }
+                            }finally{
+                                if (acquiredMutex)
+                                {
+                                        mutex.ReleaseMutex();
+                                }
+                            }                                  
+                        }else{
+                            Console.WriteLine("Error. Can't get mutext for telemetry data for {0} ms. Timeout!", controller.ReportingInterval);
+                        }
+                    }
+                    catch(Exception ex){
+                            Console.WriteLine($"Device {HwId} telemetry processing error {ex.Message}: {ex.StackTrace}");                    
+                    }       
+
+                 
+
+                }else{
+                       Console.WriteLine($"Warning: Can't find handler for deviceId wasn't configured for {HwId}");
+                }
+        }
+
+        private static object GetSignalValue(SignalTelemetry signalData){
+                        
+                        object value = null;
+                        // convert telemetry value based on specified data type
+                        if (signalData.ValueType.Equals("double",StringComparison.InvariantCultureIgnoreCase)){
+                            value = double.Parse(signalData.Value);
+                        }else if (signalData.ValueType.Equals("int",StringComparison.InvariantCultureIgnoreCase)){
+                            value = int.Parse(signalData.Value);
+                        }else{
+                            // Use string as a default value type                    
+                            value = signalData.Value;
+                        }
+                        return value;
+        }
+
         public async Task ProcessAbbDriveProfileTelemetry(List<SignalTelemetry> telemetryData){
-            await Task.Run(()=>{
-               
-                            foreach(SignalTelemetry signalData in telemetryData){
-                                
-                                 /*   TelemetrySchema telemetryMetaData = GetMetadataForTelemetry(signalData);
-                                    if (telemetryMetaData != null && !String.IsNullOrEmpty(signalData.Value)){
-                                        */                                        
-                                        DeviceController controller = null;
-                                        if (DeviceHandlers.TryGetValue(signalData.HwId, out controller)){
-                                        
-                                                object value = null;
-                                                // convert telemetry value based on specified data type
-                                                if (signalData.ValueType.Equals("double",StringComparison.InvariantCultureIgnoreCase)){
-                                                    value = double.Parse(signalData.Value);
-                                                }else if (signalData.ValueType.Equals("int",StringComparison.InvariantCultureIgnoreCase)){
-                                                    value = int.Parse(signalData.Value);
-                                                }else{
-                                                    // Use string as a default value type                    
-                                                    value = signalData.Value;
-                                                }
-                                          
-                                          
-                                                controller.SetTelemetry(signalData.Name, value);                                                                                        
-                                    }else{
-                                        Console.WriteLine("Warning: Can't find handler for deviceId wasn't configured. (HwId) {0} skiped {1} = {2}", signalData.HwId, signalData.Name, signalData.Value);
-                                    }
-                        }                                                   
+            await Task.Run(async ()=>{                
+                 IEnumerable<IGrouping<string,SignalTelemetry>> telemetryByHw = telemetryData.GroupBy(t => t.HwId);                
+                 foreach(IGrouping<string,SignalTelemetry> hwTelemetry in telemetryByHw){
+                      await this.ProcessTelemetryForHwId(hwTelemetry.Key,  hwTelemetry.ToArray<SignalTelemetry>());
+                 }
+
             });
         }
 
