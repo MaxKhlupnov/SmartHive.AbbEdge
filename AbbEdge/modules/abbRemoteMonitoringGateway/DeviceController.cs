@@ -11,6 +11,7 @@
     using Microsoft.Azure.Devices.Shared;
     using Newtonsoft.Json;
     using Newtonsoft.Json.Linq;
+    using System.Reflection;
 
 using abbRemoteMonitoringGateway.Models;
 
@@ -39,14 +40,17 @@ namespace abbRemoteMonitoringGateway
          */
         private DeviceClient controllerClient = null;
 
-        private DateTimeOffset DeviceTwinReportedTime = new DateTime(2000,1,1);
+        private bool TwinIsDirty = false;
 
-        public bool ReportEnabledState {get; set;} = true;               
+        public bool ReportEnabledState {get; set;} = true;  
+
+        private string contentType = "application/rm-gw-json";             
 
         private DeviceController (string deviceId){
            
               this.deviceModel = new DeviceModel(){
                    Id = deviceId,
+                   Version = Assembly.GetEntryAssembly().GetCustomAttribute<AssemblyInformationalVersionAttribute>().InformationalVersion,
                    Created = DateTime.Now
               };
 
@@ -92,6 +96,7 @@ namespace abbRemoteMonitoringGateway
                             devMsgSchema.MessageTemplate = ConstructMessageTemplate(devMsgSchema.MessageSchema.Fields);
                             TelemetryFieldsToInit.Remove(telemetry.Name);
                             this.deviceModel.Modified = DateTimeOffset.Now;
+                            this.TwinIsDirty = true;
                         };
                                 
                     }
@@ -178,7 +183,8 @@ namespace abbRemoteMonitoringGateway
 
                     controller.controllerClient = DeviceClient.CreateFromConnectionString(deviceConfig.ConnectionString, tt);                    
                     controller.controllerClient.SetConnectionStatusChangesHandler(controller.ConnectionStatusChangesHandler);                    
-                    
+                    await controller.controllerClient.OpenAsync();
+
                     // Update device model                    
                     controller.deviceModel.Properties = deviceConfig.Properties;
                     controller.deviceModel.Protocol = Enum.GetName(typeof(TransportType), tt);
@@ -193,13 +199,14 @@ namespace abbRemoteMonitoringGateway
 
                         DeviceModel.DeviceModelMessage devMsgSchema = new DeviceModel.DeviceModelMessage();
                             devMsgSchema.MessageSchema = new DeviceModel.DeviceModelMessageSchema();
-                            devMsgSchema.MessageSchema.Name = deviceConfig.Type.ToLowerInvariant() + ";v1";
+                            devMsgSchema.MessageSchema.Name = deviceConfig.Type.ToLowerInvariant() + ";v1";                            
                             devMsgSchema.MessageSchema.Format = DeviceModel.DeviceModelMessageSchemaFormat.JSON;
                             devMsgSchema.MessageSchema.Fields = new Dictionary<string,DeviceModel.DeviceModelMessageSchemaType>();
                             devMsgSchema.Interval = TimeSpan.FromMilliseconds(gatewayController.GatewayConfig.ReportingInterval);
 
 
                         controller.deviceModel.Telemetry.Add(devMsgSchema);
+                        controller.contentType = devMsgSchema.MessageSchema.Name;
                         
                     }catch(Exception ex){
                          Console.WriteLine($"Device {HwId} message schema initialization error {ex.Message} {ex.StackTrace}");
@@ -220,6 +227,12 @@ namespace abbRemoteMonitoringGateway
           private void ConnectionStatusChangesHandler(ConnectionStatus status, ConnectionStatusChangeReason reason){
 
                 Console.WriteLine($"Connection status  changed {status} {reason} at {DateTime.Now}");
+
+                if (status != ConnectionStatus.Connected || status != ConnectionStatus.Disconnected_Retrying){
+                    
+                    this.controllerClient.OpenAsync();
+                }
+
           }
 
        private async Task SendTelemetry()
@@ -242,9 +255,9 @@ namespace abbRemoteMonitoringGateway
             }
             byte [] messageBytes = Encoding.ASCII.GetBytes(serializedStr);
              Message  pipeMessage =  new Message(messageBytes);
-            pipeMessage.Properties.Add("content-type", "application/rm-gw-json");
+            pipeMessage.Properties.Add("content-type", this.contentType);
             
-            await this.controllerClient.SendEventAsync(pipeMessage).ConfigureAwait(false);
+            await this.controllerClient.SendEventAsync(pipeMessage);
             
             Console.WriteLine($"Sent HwId {this.deviceModel.Id} message: {serializedStr}");  
 
@@ -255,27 +268,25 @@ namespace abbRemoteMonitoringGateway
         private async Task Run(int ReportingInterval){
             // Create send task               
                 await Task.Factory.StartNew(async()=> {
-
+                    
                     while (this.ReportEnabledState)
                     {
                         try{
-                            await this.controllerClient.OpenAsync().ConfigureAwait(false);;
 
-                            await this.SendTelemetry().ConfigureAwait(false);;
+                            await this.SendTelemetry();
+                            
                             // Update device twin if changed
-                            if (this.deviceModel.Telemetry != null && this.deviceModel.Telemetry.Count > 0 &&
-                                        this.DeviceTwinReportedTime < this.deviceModel.Modified ){
+                            if (this.TwinIsDirty){
                                 // Update Twin BTW 
                                                                     
-                                    string serializedStr = JsonConvert.SerializeObject(this.deviceModel);                                     
+                                    string serializedStr = JsonConvert.SerializeObject(this.GetDeviceTwinProperties());                                     
                                     Console.WriteLine($"Updating device twin  {serializedStr}");
                                  
                                    TwinCollection reportedProperties = JsonConvert.DeserializeObject<TwinCollection>(serializedStr);                         
                                     
-                                    await this.controllerClient.UpdateReportedPropertiesAsync(reportedProperties).ConfigureAwait(false);;                                                                   
-                                    this.DeviceTwinReportedTime = DateTimeOffset.Now;
-
-                            await this.controllerClient.CloseAsync().ConfigureAwait(false);;
+                                    await this.controllerClient.UpdateReportedPropertiesAsync(reportedProperties);                                                                   
+                                    this.TwinIsDirty = false;
+                           
                             }
                         }
                         catch(Exception ex){
@@ -286,8 +297,36 @@ namespace abbRemoteMonitoringGateway
                 
                 Console.WriteLine($"Sending task canceled for {this.deviceModel.Id}");
 
-                }).ConfigureAwait(false);
+                });
             
+        }
+
+        //public const string SUPPORTED_METHODS_KEY = "SupportedMethods";
+        public const string TELEMETRY_KEY = "Telemetry";
+        public const string TYPE_KEY = "Type";
+        public const string VERSION_KEY = "Version";
+
+        /// <summary>
+        /// Initializes device properties from the device model.
+        /// </summary>
+        private JObject GetDeviceTwinProperties(){
+                 
+                
+            var properties = new JObject();
+            
+             properties[TYPE_KEY] = this.deviceModel.Type;
+             properties[VERSION_KEY] = this.deviceModel.Version;
+             // Add properties listed in device model
+            foreach (var property in this.deviceModel.Properties)
+            {
+                if (property.Key != null && property.Value != null)
+                    properties[property.Key] = property.Value.ToString();
+            }
+            // Add telemetry property
+            var telemetry = this.deviceModel.GetTelemetryReportedProperty(new abbRemoteMonitoringGateway.Services.Diagnostics.ConsoleLogger());
+            properties[TELEMETRY_KEY] = telemetry;
+
+            return properties;        
         }
 
      }
