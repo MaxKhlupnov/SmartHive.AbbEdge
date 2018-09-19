@@ -64,7 +64,7 @@ namespace abbRemoteMonitoringGateway
             // Read Module Twin Desired Properties       
             Console.WriteLine("Starting Gateway controller handler process.");
              GatewayModel gatewayConfigModel = GatewayController.CreateGatewayModel(moduleTwin.Properties.Desired);
-            GatewayController controller = await GatewayController.Init(gatewayConfigModel, cts.Token);
+            GatewayController controller = await GatewayController.Make(gatewayConfigModel);
             var userContext = new Tuple<ModuleClient, GatewayController>(ioTHubModuleClient, controller);
             
             // Register callback to be called when a message is received by the module
@@ -150,7 +150,7 @@ namespace abbRemoteMonitoringGateway
 
                 GatewayModel updateModel = GatewayController.CreateGatewayModel(desiredProperties);
                  
-                 gatewayHandle.UpdateGatewayModel(updateModel);
+                 await gatewayHandle.UpdateGatewayModel(updateModel);
 
                 // restore message handling
                 await ioTHubModuleClient.SetInputMessageHandlerAsync(InputName, PipeMessage,  userContext); 

@@ -17,19 +17,19 @@ using abbRemoteMonitoringGateway.Models;
 namespace abbRemoteMonitoringGateway
 {
      class DeviceController {    
-        /***
-          If we can send telemetry to the cloud
-         */
-        public bool ReportEnabledState {get; set;} = true;
-        /**
-          Sent Telemetry to the cloud interval in ms
-        */
-        public int ReportingInterval {get; set;} = 1000;
+        
         /** 
             Collection of telemetry data to send
         */
-        public Dictionary<string, object> Telemetry {get; set;} = null;
+         public Dictionary<string, object> Telemetry {get; set;} = null;  
+         /**
+          #endregionList of metadata to initialize MessageSchema
+          */
+         private List<string> TelemetryFieldsToInit = null;
 
+        private bool ReportValueUnits = false;
+
+        private const string  cValueUnitsSuffix = "_unit";
         /** 
          Device model for IoT Hub device twin
         */
@@ -39,11 +39,9 @@ namespace abbRemoteMonitoringGateway
          */
         private DeviceClient controllerClient = null;
 
-        // private bool IsDeviceInfoUpdated = false;
+        private DateTimeOffset DeviceTwinReportedTime = new DateTime(2000,1,1);
 
-        public Mutex telemetryMutex {get; set; }
-
-        private CancellationToken cancelToken;
+        public bool ReportEnabledState {get; set;} = true;               
 
         private DeviceController (string deviceId){
            
@@ -51,18 +49,104 @@ namespace abbRemoteMonitoringGateway
                    Id = deviceId,
                    Created = DateTime.Now
               };
-              this.Telemetry = new Dictionary<string, object>();
-              this.telemetryMutex  = new Mutex(false, deviceId);
+
+              this.Telemetry = new Dictionary<string, object> ();
         }
 
 
+        public void SetTelemetry(SignalTelemetry telemetry){
+               
+            lock(this.Telemetry){
+                if (this.Telemetry.ContainsKey(telemetry.Name)){
+                    this.Telemetry[telemetry.Name] =  GetSignalValue(telemetry);
+                }else{
+                    this.Telemetry.Add(telemetry.Name, GetSignalValue(telemetry)); 
+                }
+
+                // Add telemetry value units if requested
+                if (this.ReportValueUnits){
+                    string unitsKey = telemetry.Name + cValueUnitsSuffix;
+
+                    if (this.Telemetry.ContainsKey(unitsKey)){
+                        this.Telemetry[unitsKey] =  telemetry.ValueUnit;
+                    }else{
+                        this.Telemetry.Add(unitsKey, telemetry.ValueUnit); 
+                    }
+                }
+            }
+
+            try{
+                if (this.TelemetryFieldsToInit != null && TelemetryFieldsToInit.Contains(telemetry.Name) 
+                        && this.deviceModel.Telemetry != null && this.deviceModel.Telemetry.Count > 0){
+                    lock(TelemetryFieldsToInit){
+                      DeviceModel.DeviceModelMessage devMsgSchema = this.deviceModel.Telemetry[0];
+                      DeviceModel.DeviceModelMessageSchemaType schemaTypeField;
+                        if (!devMsgSchema.MessageSchema.Fields.TryGetValue(telemetry.Name, out schemaTypeField)){
+                             // if this field not exist
+                                schemaTypeField = (DeviceModel.DeviceModelMessageSchemaType) Enum.Parse(typeof(DeviceModel.DeviceModelMessageSchemaType), telemetry.ValueType);
+                                devMsgSchema.MessageSchema.Fields.Add(telemetry.Name, schemaTypeField);
+                                if (this.ReportValueUnits){
+                                    devMsgSchema.MessageSchema.Fields.Add(telemetry.Name+cValueUnitsSuffix, DeviceModel.DeviceModelMessageSchemaType.Text);
+                                }
+
+                            devMsgSchema.MessageTemplate = ConstructMessageTemplate(devMsgSchema.MessageSchema.Fields);
+                            TelemetryFieldsToInit.Remove(telemetry.Name);
+                            this.deviceModel.Modified = DateTimeOffset.Now;
+                        };
+                                
+                    }
+                }
+            }catch(Exception ex){
+                Console.WriteLine($"Error {ex.Message} building device {telemetry.HwId} telemetry schema for the field {telemetry.Name} typeof {telemetry.ValueType} {ex.StackTrace}");                 
+            }
+        }
+
+
+            private string ConstructMessageTemplate(IDictionary<string, DeviceModel.DeviceModelMessageSchemaType> fields){
+                if (fields == null || fields.Count == 0)
+                    return string.Empty;
+
+                    StringBuilder sb = new StringBuilder(100).Append('{');
+                        int fieldNumber = 0;
+                        foreach(string field in fields.Keys){
+                            fieldNumber ++;
+                            if (!field.EndsWith(cValueUnitsSuffix)){                            
+                                // Add only measurements and skip _unites telemetry
+                                sb.Append($"\"{field}\":$").Append('{').Append(field).Append('}');
+                                if (this.ReportValueUnits){
+                                    sb.Append($",\"{field}{cValueUnitsSuffix}\":$").Append('{').Append(field).Append(cValueUnitsSuffix).Append('}');
+                                }
+                            }
+                            if (fieldNumber == fields.Keys.Count){
+                                sb.Append('}');
+                            }
+                        }
+
+                    return sb.ToString();
+            }
+
+
+        private static object GetSignalValue(SignalTelemetry signalData){
+                        
+                        object value = null;
+                        // convert telemetry value based on specified data type
+                        if (signalData.ValueType.Equals("double",StringComparison.InvariantCultureIgnoreCase)){
+                            value = double.Parse(signalData.Value);
+                        }else if (signalData.ValueType.Equals("int",StringComparison.InvariantCultureIgnoreCase)){
+                            value = int.Parse(signalData.Value);
+                        }else{
+                            // Use string as a default value type                    
+                            value = signalData.Value;
+                        }
+                        return value;
+        }
 
        /// <summary>
         /// Initialize Device Controller IoT Hub connection and device Twin properties
         /// </summary>
         /// <param name="userContext"></param>
         /// <returns></returns>
-        internal static async Task<DeviceController> Init(string HwId, DeviceConfig deviceConfig, CancellationToken cancelToken)
+        internal static async Task<DeviceController> Init(string HwId, GatewayController gatewayController)
         {
           
           DeviceController controller = new DeviceController(HwId);
@@ -72,7 +156,9 @@ namespace abbRemoteMonitoringGateway
                     Console.WriteLine("Error creating controller. HwId is NULL or empty");
                     return null;
                 }
-               
+                
+                DeviceConfig deviceConfig = gatewayController.GetConfigForHwId(HwId);
+
                 if (string.IsNullOrEmpty(deviceConfig.ConnectionString)){
                     Console.WriteLine($"ConnectionString string for device {HwId} or empty");
                     return null;
@@ -80,10 +166,47 @@ namespace abbRemoteMonitoringGateway
 
                 try{
                     
-                    controller.controllerClient = DeviceClient.CreateFromConnectionString(deviceConfig.ConnectionString);
-                    await controller.controllerClient.OpenAsync();
-                    controller.cancelToken = cancelToken;
-                  //  await controller.Run();
+                    TransportType tt = TransportType.Mqtt_Tcp_Only;
+                    try{
+                        tt = (TransportType) Enum.Parse(typeof(TransportType), deviceConfig.Protocol, true);
+                        
+                    }catch(Exception){
+                        Console.WriteLine($"Error parsing protocol {deviceConfig.Protocol} as TransportType enum");
+                    }
+
+                    Console.WriteLine($"Selected {tt} as device client transport");
+
+                    controller.controllerClient = DeviceClient.CreateFromConnectionString(deviceConfig.ConnectionString, tt);                    
+                    controller.controllerClient.SetConnectionStatusChangesHandler(controller.ConnectionStatusChangesHandler);                    
+                    
+                    // Update device model                    
+                    controller.deviceModel.Properties = deviceConfig.Properties;
+                    controller.deviceModel.Protocol = Enum.GetName(typeof(TransportType), tt);
+                    controller.deviceModel.Type = deviceConfig.Type;
+                    //Construct DeviceModel
+                    try{
+                        DeviceType deviceSchema=  gatewayController.GetDeviceType(deviceConfig.Type);  
+                        
+                        controller.TelemetryFieldsToInit = new List<string>(deviceSchema.TelemetryFields.Split(','));
+                        
+                        controller.ReportValueUnits = deviceSchema.ReportValueUnits;
+
+                        DeviceModel.DeviceModelMessage devMsgSchema = new DeviceModel.DeviceModelMessage();
+                            devMsgSchema.MessageSchema = new DeviceModel.DeviceModelMessageSchema();
+                            devMsgSchema.MessageSchema.Name = deviceConfig.Type.ToLowerInvariant() + ";v1";
+                            devMsgSchema.MessageSchema.Format = DeviceModel.DeviceModelMessageSchemaFormat.JSON;
+                            devMsgSchema.MessageSchema.Fields = new Dictionary<string,DeviceModel.DeviceModelMessageSchemaType>();
+                            devMsgSchema.Interval = TimeSpan.FromMilliseconds(gatewayController.GatewayConfig.ReportingInterval);
+
+
+                        controller.deviceModel.Telemetry.Add(devMsgSchema);
+                        
+                    }catch(Exception ex){
+                         Console.WriteLine($"Device {HwId} message schema initialization error {ex.Message} {ex.StackTrace}");
+                    }
+                    
+                        controller.ReportEnabledState = gatewayController.GatewayConfig.ReportEnabledState;
+                        await controller.Run(gatewayController.GatewayConfig.ReportingInterval);
 
                 return controller;
 
@@ -94,52 +217,12 @@ namespace abbRemoteMonitoringGateway
                 }                 
         }
 
-  /*      private async Task Run(){
+          private void ConnectionStatusChangesHandler(ConnectionStatus status, ConnectionStatusChangeReason reason){
 
-            // Create send task               
-                await Task.Factory.StartNew(async()=> {
+                Console.WriteLine($"Connection status  changed {status} {reason} at {DateTime.Now}");
+          }
 
-                    while (!cancelToken.IsCancellationRequested)
-                    {
-
-                        if (this.ReportEnabledState)
-                        {
-                            
-                                
-                                    bool hasMutex = false;
-                                    try{ 
-                                        hasMutex = this.telemetryMutex.WaitOne(this.ReportingInterval);
-                                        if (hasMutex){
-                                            if (this.Telemetry.Count > 0){// Send current telemetry data            
-                                                await this.SendData();
-                                                this.Telemetry.Clear();
-                                            }
-                                          
-                                        }else{
-                                            Console.WriteLine("Error. Can't get mutext for telemetry data for {0} ms. Timeout!", this.ReportingInterval);
-                                        }
-                                    }catch(Exception ex){
-                                            Console.WriteLine("Error upload data: {0}, {1}", ex.Message, ex.StackTrace);
-                                    }
-                                    finally{
-                                            if (hasMutex)
-                                            {
-                                               this.telemetryMutex.ReleaseMutex();
-                                            }
-                                    }
-                                                                                        
-                        }
-                        await Task.Delay(this.ReportingInterval);
-                }
-                
-                Console.WriteLine($"Sending task canceled for {this.deviceModel.Id}");
-
-                }, cancelToken);
-            
-        }*/
-
-
-       public async Task SendTelemetry()
+       private async Task SendTelemetry()
         {
                if (this.controllerClient == null)
                 {
@@ -147,15 +230,65 @@ namespace abbRemoteMonitoringGateway
                     return;
                 }
 
-                string serializedStr = JsonConvert.SerializeObject(this.Telemetry);                
-                byte [] messageBytes = Encoding.ASCII.GetBytes(serializedStr);
+            if (this.Telemetry == null || this.Telemetry.Count == 0){
+                    Console.WriteLine("No new telemetry to sent");
+                    return;
+            }
 
-                    Message  pipeMessage =  new Message(messageBytes);
-                    pipeMessage.Properties.Add("content-type", "application/rm-gw-json");
-                 
-                    await this.controllerClient.SendEventAsync(pipeMessage);                            
-                    Console.WriteLine($"Sent HwId {this.deviceModel.Id} message: {serializedStr}");                        
+            string serializedStr = string.Empty;
+            lock(this.Telemetry){                    
+                    serializedStr = JsonConvert.SerializeObject(this.Telemetry);                                    
+                    this.Telemetry.Clear();                                               
+            }
+            byte [] messageBytes = Encoding.ASCII.GetBytes(serializedStr);
+             Message  pipeMessage =  new Message(messageBytes);
+            pipeMessage.Properties.Add("content-type", "application/rm-gw-json");
+            
+            await this.controllerClient.SendEventAsync(pipeMessage).ConfigureAwait(false);
+            
+            Console.WriteLine($"Sent HwId {this.deviceModel.Id} message: {serializedStr}");  
+
+                   
         }        
+
+        /* Loop for sending telemetry*/            
+        private async Task Run(int ReportingInterval){
+            // Create send task               
+                await Task.Factory.StartNew(async()=> {
+
+                    while (this.ReportEnabledState)
+                    {
+                        try{
+                            await this.controllerClient.OpenAsync().ConfigureAwait(false);;
+
+                            await this.SendTelemetry().ConfigureAwait(false);;
+                            // Update device twin if changed
+                            if (this.deviceModel.Telemetry != null && this.deviceModel.Telemetry.Count > 0 &&
+                                        this.DeviceTwinReportedTime < this.deviceModel.Modified ){
+                                // Update Twin BTW 
+                                                                    
+                                    string serializedStr = JsonConvert.SerializeObject(this.deviceModel);                                     
+                                    Console.WriteLine($"Updating device twin  {serializedStr}");
+                                 
+                                   TwinCollection reportedProperties = JsonConvert.DeserializeObject<TwinCollection>(serializedStr);                         
+                                    
+                                    await this.controllerClient.UpdateReportedPropertiesAsync(reportedProperties).ConfigureAwait(false);;                                                                   
+                                    this.DeviceTwinReportedTime = DateTimeOffset.Now;
+
+                            await this.controllerClient.CloseAsync().ConfigureAwait(false);;
+                            }
+                        }
+                        catch(Exception ex){
+                            Console.WriteLine($"Send telemetry {this.deviceModel.Id} error {ex.Message} {ex.StackTrace}");
+                        }
+                       await Task.Delay(ReportingInterval);
+                    }
+                
+                Console.WriteLine($"Sending task canceled for {this.deviceModel.Id}");
+
+                }).ConfigureAwait(false);
+            
+        }
 
      }
 }

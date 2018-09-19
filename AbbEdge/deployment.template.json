@@ -250,22 +250,32 @@
       "properties.desired": {
         "ReportingInterval": 2000,
         "ReportEnabledState": true,
+        "DeviceTypes":{
+          "Drive": {            
+            "TelemetryFields": "Speed,Torque,Frequency,Current,Power,Energy",
+            "ReportValueUnits": true
+          }
+        },
         "DownstreamDevices": {
           "ABB-ACS580-01-02A6-4": {
             "ConnectionString": "$IOTHUB_DEVICE1_CONNECTION_STRING",
+            "Protocol": "Mqtt",
             "Type": "Drive",
-            "Location": "Microsoft Technology Center",
-            "Latitiude": 55.779049,
-            "Longitude": 37.588602,
-            "ReportedTelemetry": "Speed,Torque,Frequency,Current,Power,Energy"
+            "Properties":{
+              "Location": "Microsoft Technology Center",
+              "Latitiude": 55.779049,
+              "Longitude": 37.588602
+            }            
           },
           "ABB-ACS880-1": {
             "ConnectionString": "$IOTHUB_DEVICE2_CONNECTION_STRING",
+            "Protocol": "Mqtt",
             "Type": "Drive",
-            "Location": "Microsoft Technology Center",
-            "Latitiude": 55.779049,
-            "Longitude": 37.588602,
-            "ReportedTelemetry": "Speed,Torque,Frequency,Current,Power,Energy"
+            "Properties":{
+              "Location": "Microsoft Technology Center",
+              "Latitiude": 55.779049,
+              "Longitude": 37.588602
+            }            
           }
         }
       }

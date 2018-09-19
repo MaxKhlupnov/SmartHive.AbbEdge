@@ -25,8 +25,8 @@ namespace abbRemoteMonitoringGateway.Models
         public string Version { get; set; }
         public string Name { get; set; }
         public string Description { get; set; }
-        public DeviceModelType Type { get; set; }
-        public IoTHubProtocol Protocol { get; set; }
+        public string Type { get; set; }
+        public string Protocol { get; set; }
 
         public Dictionary<string, object> Properties { get; set; }
         public IList<DeviceModelMessage> Telemetry { get; set; }
@@ -41,8 +41,8 @@ namespace abbRemoteMonitoringGateway.Models
             this.Version = "0.0.0";
             this.Name = string.Empty;
             this.Description = string.Empty;
-            this.Type = DeviceModelType.Custom;
-            this.Protocol = IoTHubProtocol.AMQP;
+            this.Type = Enum.GetName(typeof(DeviceModelType),DeviceModelType.Custom);
+            this.Protocol = "AMQP";
             this.Properties = new Dictionary<string, object>();
             this.Telemetry = new List<DeviceModelMessage>();
             
@@ -187,7 +187,10 @@ namespace abbRemoteMonitoringGateway.Models
             Stock = 10,
 
             [EnumMember(Value = "Custom")]
-            Custom = 20
+            Custom = 20,
+
+            [EnumMember(Value = "Drive")]
+            Drive = 30
         }
     }
 }

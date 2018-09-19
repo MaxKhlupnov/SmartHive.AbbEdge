@@ -14,7 +14,7 @@
     using Microsoft.Azure.Devices.Shared;
     using Newtonsoft.Json;
     using Newtonsoft.Json.Linq;
-
+    using abbRemoteMonitoringGateway.Models;
 
 namespace abbRemoteMonitoringGateway
 {
@@ -37,8 +37,17 @@ namespace abbRemoteMonitoringGateway
             this.GatewayConfig = gatewayDeviceConfig;
             this.DeviceHandlers = new Dictionary<string,DeviceController>(gatewayDeviceConfig.DownstreamDevices.Count);
         }
- 
-        internal static async Task<GatewayController> Init(GatewayModel  gatewayDeviceConfig, CancellationToken cancelToken){
+
+        public DeviceType GetDeviceType (string Type){
+            DeviceType returnValue = null;
+                if (this.GatewayConfig.DeviceTypes.TryGetValue(Type, out returnValue)){
+                    return returnValue;
+                }else{
+                    throw new ArgumentException($"Can't find definition in Twin for type {Type}");
+                }
+        }
+
+        internal static async Task<GatewayController> Make(GatewayModel  gatewayDeviceConfig){
 
                 if (gatewayDeviceConfig ==null || gatewayDeviceConfig.DownstreamDevices == null || gatewayDeviceConfig.DownstreamDevices.Count == 0)
                     throw new ArgumentException("Gateway config in the module twin contain no devices under DownstreamDevices section");
@@ -46,14 +55,20 @@ namespace abbRemoteMonitoringGateway
                     GatewayController controller = new GatewayController(gatewayDeviceConfig);
                     InstallCert();
 
-                    foreach(string HwId in gatewayDeviceConfig.DownstreamDevices.Keys){
-                        DeviceConfig deviceConfig = null;
-                        if (gatewayDeviceConfig.DownstreamDevices.TryGetValue(HwId, out deviceConfig)){
+                    await controller.LoadConfig(gatewayDeviceConfig);
+                                       
+                    return controller;
+        }
+
+        private async Task  LoadConfig(GatewayModel  gatewayDeviceConfig){
+                 foreach(string HwId in gatewayDeviceConfig.DownstreamDevices.Keys){
+                        DeviceConfig deviceConfig = GetConfigForHwId(HwId);
+                        if (deviceConfig != null){
 
                         await Task.Run( async() => {
-                                DeviceController deviceController = await DeviceController.Init(HwId,deviceConfig, cancelToken);     
+                                DeviceController deviceController = await DeviceController.Init(HwId,this);     
                                 if (deviceController != null) {                        
-                                    controller.DeviceHandlers.Add(HwId, deviceController);
+                                    this.DeviceHandlers.Add(HwId, deviceController);
                                 }else{
                                     Console.WriteLine($"Error creating Device Controller for {HwId}");
                                 }
@@ -64,10 +79,16 @@ namespace abbRemoteMonitoringGateway
                         }
 
                     }
-                    
-                    return controller;
-        }
+        } 
 
+
+        public DeviceConfig GetConfigForHwId(string HwId){
+             DeviceConfig deviceConfig = null;
+             if (this.GatewayConfig.DownstreamDevices.TryGetValue(HwId, out deviceConfig))
+                return deviceConfig;
+             else 
+                return null;
+        }
 
         /// <summary>
         /// Add certificate in local cert store for use by client for secure connection to IoT Edge runtime
@@ -119,32 +140,12 @@ namespace abbRemoteMonitoringGateway
                 }               
             }
         }        
-        public void UpdateGatewayModel(GatewayModel config){
-            
-                    foreach (DeviceController cntrl in this.DeviceHandlers.Values)
-                    {
-                        cntrl.ReportEnabledState = config.ReportEnabledState;
-                        cntrl.ReportingInterval = config.ReportingInterval;
-                        // Clear DeviceInfo, it will be updated soon  
-                        // TODO: Copy telemetry matched metadata from existing GatewayDeviceConfig
-                        bool hasMutex = false;
-                        try{ 
-                            hasMutex = cntrl.telemetryMutex.WaitOne(cntrl.ReportingInterval);
-                            if (hasMutex){
-                                cntrl.Telemetry.Clear();                    
-                            }else{
-                            Console.WriteLine("Error. Can't get mutext for telemetry data for {0} ms. Timeout!", cntrl.ReportingInterval);
-                        }
-                    }finally{
-                        if (hasMutex)
-                        {
-                            cntrl.telemetryMutex.ReleaseMutex();
-                        }
-                    }         
-                    }
+        public async Task UpdateGatewayModel(GatewayModel config){            
+                  
+                 await this.LoadConfig(config);                                      
         }
 
-        private async void SendData(ModuleClient ioTHubModuleClient, object data)
+/*       private async void SendData(ModuleClient ioTHubModuleClient, object data)
         {
             try
             {
@@ -167,10 +168,10 @@ namespace abbRemoteMonitoringGateway
             {
                 Console.WriteLine("Exception while sending message to IoT Hub:\n" + e.Message.ToString());
             }
-        }        
+        }   */     
 
 
-        private async Task ProcessTelemetryForHwId(string HwId, SignalTelemetry[] telemetryData){
+        private void ProcessTelemetryForHwId(string HwId, SignalTelemetry[] telemetryData){
                 
                 if (telemetryData == null || telemetryData.Length == 0){
                     Console.WriteLine(@"Warning: No telemetry in a batch for {HwId}");
@@ -179,111 +180,27 @@ namespace abbRemoteMonitoringGateway
                 DeviceController controller = null;
                 if (DeviceHandlers.TryGetValue(HwId, out controller)){
                     
-                    Mutex mutex = Mutex.OpenExisting(HwId);
-                    bool acquiredMutex;
-                    try{ 
-                        
-                        if (mutex != null){
-                            
-                            try{
-                                acquiredMutex = mutex.WaitOne(TimeSpan.FromSeconds(15));
-                            }catch(AbandonedMutexException)
-                            {
-                                acquiredMutex = true;
-                            }
-
-                            try{
-                                if (acquiredMutex){
-                                    foreach(SignalTelemetry signalData in telemetryData){
-                                        object TelemetryValue = GetSignalValue(signalData);
-                                        if (controller.Telemetry.ContainsKey(signalData.Name)){
-                                            controller.Telemetry[signalData.Name] = TelemetryValue;
-                                        }else{
-                                            controller.Telemetry.Add(signalData.Name, TelemetryValue); 
-                                        }                                                                 
-                                            
-                                    } 
-                                    await controller.SendTelemetry();                                                                                                                                         
-
-                                    controller.Telemetry.Clear();
-                                }
-                            }finally{
-                                if (acquiredMutex)
-                                {
-                                        mutex.ReleaseMutex();
-                                }
-                            }                                  
-                        }else{
-                            Console.WriteLine("Error. Can't get mutext for telemetry data for {0} ms. Timeout!", controller.ReportingInterval);
-                        }
-                    }
-                    catch(Exception ex){
-                            Console.WriteLine($"Device {HwId} telemetry processing error {ex.Message}: {ex.StackTrace}");                    
-                    }       
-
-                 
-
+                       
+                        foreach(SignalTelemetry signalData in telemetryData){                    
+                            controller.SetTelemetry(signalData);                                                                                                       
+                        }                                                                                                                                                                       
+                                           
                 }else{
                        Console.WriteLine($"Warning: Can't find handler for deviceId wasn't configured for {HwId}");
                 }
         }
-
-        private static object GetSignalValue(SignalTelemetry signalData){
-                        
-                        object value = null;
-                        // convert telemetry value based on specified data type
-                        if (signalData.ValueType.Equals("double",StringComparison.InvariantCultureIgnoreCase)){
-                            value = double.Parse(signalData.Value);
-                        }else if (signalData.ValueType.Equals("int",StringComparison.InvariantCultureIgnoreCase)){
-                            value = int.Parse(signalData.Value);
-                        }else{
-                            // Use string as a default value type                    
-                            value = signalData.Value;
-                        }
-                        return value;
-        }
+        
+ 
 
         public async Task ProcessAbbDriveProfileTelemetry(List<SignalTelemetry> telemetryData){
-            await Task.Run(async ()=>{                
+            await Task.Run(()=>{                
                  IEnumerable<IGrouping<string,SignalTelemetry>> telemetryByHw = telemetryData.GroupBy(t => t.HwId);                
                  foreach(IGrouping<string,SignalTelemetry> hwTelemetry in telemetryByHw){
-                      await this.ProcessTelemetryForHwId(hwTelemetry.Key,  hwTelemetry.ToArray<SignalTelemetry>());
+                       this.ProcessTelemetryForHwId(hwTelemetry.Key,  hwTelemetry.ToArray<SignalTelemetry>());
                  }
 
             });
         }
-
-        /**
-         Return true if 
-        */
-            private void GetMetadataForTelemetry(SignalTelemetry signalData){
-
-
-                    return;
-            /*    if (this.GatewayConfig.ReportedTelemetry.ContainsKey(signalData.Name)){
-                    TelemetryMetadataModel gwConfigMetadata = this.GatewayConfig.DownstreamDevice.ReportedTelemetry.GetValueOrDefault(signalData.Name);
-                    
-                    // Construct metadata
-                    TelemetrySchema telemetryMetaData = new TelemetrySchema(){
-                        Name = signalData.Name,
-                        DisplayName = gwConfigMetadata.DisplayName,
-                        Type  = signalData.ValueType.ToLowerInvariant()
-                    };
-                    // Check if we have metadata description in monitoring device
-                    if (!this.GatewayDeviceConfig.Telemetry.Contains(telemetryMetaData)){
-                        this.GatewayDeviceConfig.Telemetry.Add(telemetryMetaData);
-                        Console.WriteLine(String.Format("Telemetry configured for remote monitoring: Name: {0}, Type: {1}, DisplayName: {2}", 
-                                                    telemetryMetaData.Name, telemetryMetaData.Type, telemetryMetaData.DisplayName));
-                        this.IsDeviceInfoUpdated = true;
-                    }
-                
-                    return telemetryMetaData;
-                }else{
-                    Console.WriteLine("Signal {0} is not configured for reporting at the module Twin ", signalData.Name);
-                    return null;
-                }*/
-                
-            }
     }
     
 
@@ -291,22 +208,28 @@ namespace abbRemoteMonitoringGateway
     {            
         public bool ReportEnabledState {get; set;}
          public int ReportingInterval {get; set;}
-         public string  ReportedTelemetry {get; set;}
+         public string ReportedTelemetry {get; set;}
+
+         public Dictionary<string, DeviceType> DeviceTypes {get; set;}
   
  //       public Dictionary<string, Command> Commands;        
         public Dictionary<string, DeviceConfig> DownstreamDevices;
   
     }
-
+    
     public class DeviceConfig{
         public string ConnectionString {get; set;}
         public string Type {get; set;}
-        public string Location {get; set;}
-        public double Latitiude {get; set;}
-        public double Longitude {get; set;}
-        public string ReportedTelemetry {get; set;}
+        public string Protocol { get; set; }
+
+        public Dictionary<string, object> Properties { get; set; }
     }
 
+
+    public class DeviceType{            
+            public string TelemetryFields {get; set;}
+            public bool ReportValueUnits {get; set;} = false;
+    }
 
     public class SignalTelemetry{
         public string HwId { get; set; }
