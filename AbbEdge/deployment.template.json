@@ -263,7 +263,7 @@
             "Type": "Drive",
             "Properties":{
               "Location": "Microsoft Technology Center",
-              "Latitiude": 55.779049,
+              "Latitude": 55.779049,
               "Longitude": 37.588602
             }            
           },
@@ -273,7 +273,7 @@
             "Type": "Drive",
             "Properties":{
               "Location": "Microsoft Technology Center",
-              "Latitiude": 55.779049,
+              "Latitude": 55.779049,
               "Longitude": 37.588602
             }            
           }

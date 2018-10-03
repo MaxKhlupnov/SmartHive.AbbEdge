@@ -59,8 +59,7 @@ namespace abbRemoteMonitoringGateway
 
 
         public void SetTelemetry(SignalTelemetry telemetry){
-               
-            lock(this.Telemetry){
+                           
                 if (this.Telemetry.ContainsKey(telemetry.Name)){
                     this.Telemetry[telemetry.Name] =  GetSignalValue(telemetry);
                 }else{
@@ -76,8 +75,7 @@ namespace abbRemoteMonitoringGateway
                     }else{
                         this.Telemetry.Add(unitsKey, telemetry.ValueUnit); 
                     }
-                }
-            }
+                }           
 
             try{
                 if (this.TelemetryFieldsToInit != null && TelemetryFieldsToInit.Contains(telemetry.Name) 
@@ -248,17 +246,16 @@ namespace abbRemoteMonitoringGateway
                     return;
             }
 
-            string serializedStr = string.Empty;
-            lock(this.Telemetry){                    
-                    serializedStr = JsonConvert.SerializeObject(this.Telemetry);                                    
-                    this.Telemetry.Clear();                                               
-            }
+            string serializedStr = JsonConvert.SerializeObject(this.Telemetry);  
+            
             byte [] messageBytes = Encoding.ASCII.GetBytes(serializedStr);
              Message  pipeMessage =  new Message(messageBytes);
             pipeMessage.Properties.Add("content-type", this.contentType);
             
             await this.controllerClient.SendEventAsync(pipeMessage);
-            
+            lock(this.Telemetry){                                        
+                    this.Telemetry.Clear();                                               
+            }
             Console.WriteLine($"Sent HwId {this.deviceModel.Id} message: {serializedStr}");  
 
                    
