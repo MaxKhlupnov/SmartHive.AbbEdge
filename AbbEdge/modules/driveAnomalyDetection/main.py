@@ -6,9 +6,14 @@ import random
 import time
 import sys
 import iothub_client
+import score
 # pylint: disable=E0611
 from iothub_client import IoTHubModuleClient, IoTHubClientError, IoTHubTransportProvider
 from iothub_client import IoTHubMessage, IoTHubMessageDispositionResult, IoTHubError
+
+# debugger
+import ptvsd
+ptvsd.enable_attach(('0.0.0.0',  5679))
 
 # messageTimeout - the maximum time in milliseconds until a message times out.
 # The timeout period starts at IoTHubModuleClient.send_event_async.
@@ -34,16 +39,20 @@ def send_confirmation_callback(message, result, user_context):
 
 
 # receive_message_callback is invoked when an incoming message arrives on the specified 
-# input queue (in the case of this sample, "input1").  Because this is a filter module, 
+# input queue (in the case of this sample, "AnomalyDetectIn").  Because this is a filter module, 
 # we will forward this message onto the "output1" queue.
 def receive_message_callback(message, hubManager):
+        # Debugger breakpoint
+    ptvsd.break_into_debugger()
     global RECEIVE_CALLBACKS
     message_buffer = message.get_bytearray()
     size = len(message_buffer)
-    print ( "    Data: <<<%s>>> & Size=%d" % (message_buffer[:size].decode('utf-8'), size) )
-    map_properties = message.properties()
-    key_value_pair = map_properties.get_internals()
-    print ( "    Properties: %s" % key_value_pair )
+    message_text = message_buffer[:size].decode('utf-8')
+    scoreResult = score.scoreTelemetry(message_text)
+    print (scoreResult)
+    #print ( "    Data: <<<%s>>> & Size=%d" % (message_buffer[:size].decode('utf-8'), size) )
+    #map_properties = message.properties()
+    #key_value_pair = map_properties.get_internals()   
     RECEIVE_CALLBACKS += 1
     print ( "    Total calls received: %d" % RECEIVE_CALLBACKS )
     hubManager.forward_event_to_output("output1", message, 0)
@@ -62,9 +71,9 @@ class HubManager(object):
         # set the time until a message times out
         self.client.set_option("messageTimeout", MESSAGE_TIMEOUT)
         
-        # sets the callback when a message arrives on "input1" queue.  Messages sent to 
+        # sets the callback when a message arrives on "AnomalyDetectIn" queue.  Messages sent to 
         # other inputs or to the default will be silently discarded.
-        self.client.set_message_callback("input1", receive_message_callback, self)
+        self.client.set_message_callback("AnomalyDetectIn", receive_message_callback, self)
 
     # Forwards the message received onto the next stage in the process.
     def forward_event_to_output(self, outputQueueName, event, send_context):
@@ -75,6 +84,9 @@ def main(protocol):
     try:
         print ( "\nPython %s\n" % sys.version )
         print ( "IoT Hub Client for Python" )
+
+        # Debugger breakpoint
+        ptvsd.break_into_debugger()
 
         hub_manager = HubManager(protocol)
 

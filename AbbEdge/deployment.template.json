@@ -78,7 +78,7 @@
             "restartPolicy": "always",
             "settings": {
               "image": "${MODULES.driveAnomalyDetection.amd64.debug}",
-              "createOptions": ""
+              "createOptions": "{\"ExposedPorts\":{\"5679/tcp\":{}},\"HostConfig\":{\"PortBindings\":{\"5679/tcp\":[{\"HostPort\":\"5679\"}]}}}"
             }
           }
         }
@@ -88,9 +88,10 @@
       "properties.desired": {
         "schemaVersion": "1.0",
         "routes": {
-          "modbusToAbbAcsEdgeProfile": "FROM /messages/modules/modbus/outputs/modbusOutput INTO BrokeredEndpoint(\"/modules/abbDriveProfile/inputs/driveProfileInput\")",
+          "modbusToAbbAcsEdgeProfile": "FROM /messages/modules/modbus/outputs/modbusOutput INTO BrokeredEndpoint(\"/modules/abbDriveProfile/inputs/driveProfileInput\")",          
           "abbDriveProfileToRemoteMonitoringGateway": "FROM /messages/modules/abbDriveProfile/outputs/driveProfileOutput INTO BrokeredEndpoint(\"/modules/abbRemoteMonitoringGateway/inputs/gatewayInput\")",
-          "abbRemoteMonitoringGatewayToIoTHub": "FROM /messages/modules/abbRemoteMonitoringGateway/outputs/* INTO $upstream",
+          "abbDriveProfile2ML": "FROM /messages/modules/abbDriveProfile/outputs/driveProfileOutput INTO BrokeredEndpoint(\"/modules/driveAnomalyDetection/inputs/AnomalyDetectIn\")",
+          "abbRemoteMonitoringGatewayToIoTHub": "FROM /messages/modules/abbRemoteMonitoringGateway/outputs/* INTO $upstream",          
           "driveAnomalyDetectionToIoTHub": "FROM /messages/modules/driveAnomalyDetection/outputs/* INTO $upstream"
         },
         "storeAndForwardConfiguration": {
@@ -103,7 +104,7 @@
         "PublishInterval": "2000",
         "SlaveConfigs": {
           "acs580-01": {
-            "SlaveConnection": "10.101.51.250",
+            "SlaveConnection": "10.23.171.171",
             "HwId": "ABB-ACS580-01-02A6-4",
             "Operations": {
               "Speed": {
@@ -189,21 +190,6 @@
                 "Count": "1",
                 "DisplayName": "FrequencyScale",
                 "CorrelationId": "Frequency"
-              },
-              "PowerScale": {
-                "PollingInterval": "1000",
-                "UnitId": "1",
-                "StartAddress": "404604",
-                "Count": "1",
-                "DisplayName": "PowerScale",
-                "CorrelationId": "Power"
-              },
-              "CurrentScale": {
-                "PollingInterval": "1000",
-                "UnitId": "1",
-                "StartAddress": "404605",
-                "Count": "1",
-                "DisplayName": "CurrentScale"
               }
             }
           }

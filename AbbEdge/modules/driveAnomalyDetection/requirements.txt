@@ -1,1 +1,5 @@
 azure-iothub-device-client==1.4.0
+scikit-learn
+azureml
+azureml-core
+pandas
